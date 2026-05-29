@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" fill="#7B1A1A">
+  <!-- Top arc -->
+  <path d="M15 10 Q70 0 105 20 Q85 22 65 28 Q40 22 20 28 Z"/>
+  <!-- Middle arc -->
+  <path d="M10 38 Q65 28 100 45 Q80 47 60 53 Q35 47 15 53 Z"/>
+  <!-- Bottom arc -->
+  <path d="M5 66 Q60 56 98 72 Q78 75 58 80 Q30 75 10 80 Z"/>
+</svg>
