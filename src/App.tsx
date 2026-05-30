@@ -1,10 +1,12 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './context/AuthContext'
 import Navbar from './components/Navbar'
+import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import RecordsPage from './pages/RecordsPage'
 import AdminPage from './pages/AdminPage'
 
-export default function App() {
+function ProtectedLayout() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -16,5 +18,16 @@ export default function App() {
         </Routes>
       </main>
     </div>
+  )
+}
+
+export default function App() {
+  const { currentUser } = useAuth()
+
+  return (
+    <Routes>
+      <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/*" element={currentUser ? <ProtectedLayout /> : <Navigate to="/login" replace />} />
+    </Routes>
   )
 }
