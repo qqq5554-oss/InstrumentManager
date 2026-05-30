@@ -26,6 +26,8 @@ export interface Employee {
   name: string
   department: string | null
   active: boolean
+  username: string | null
+  password: string | null
   created_at: string
 }
 

@@ -1,0 +1,176 @@
+import { useState } from 'react'
+import { format } from 'date-fns'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+import type { Instrument } from '../types'
+import StatusBadge from './StatusBadge'
+
+interface Props {
+  instruments: Instrument[]
+  onClose: () => void
+  onDone: () => void
+}
+
+const today = () => format(new Date(), 'yyyy-MM-dd')
+
+export default function BulkBorrowModal({ instruments, onClose, onDone }: Props) {
+  const { currentUser } = useAuth()
+  const [borrowDate, setBorrowDate] = useState(today())
+  const [expectedReturn, setExpectedReturn] = useState('')
+  const [purpose, setPurpose] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [globalError, setGlobalError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentUser) return
+    setErrors({})
+    setGlobalError('')
+
+    if (!borrowDate || !expectedReturn) {
+      setGlobalError('請填寫借出日期與歸還日期')
+      return
+    }
+
+    setSubmitting(true)
+
+    // Check conflicts for all instruments in parallel
+    const conflictChecks = await Promise.all(
+      instruments.map(async inst => {
+        const { data } = await supabase
+          .from('loans')
+          .select('borrower_name, borrow_date, expected_return_date')
+          .eq('instrument_id', inst.id)
+          .in('status', ['borrowed', 'reserved'])
+          .lte('borrow_date', expectedReturn)
+          .gte('expected_return_date', borrowDate)
+        return { inst, conflicts: data ?? [] }
+      })
+    )
+
+    const newErrors: Record<string, string> = {}
+    for (const { inst, conflicts } of conflictChecks) {
+      if (conflicts.length > 0) {
+        const c = conflicts[0] as { borrower_name: string; borrow_date: string; expected_return_date: string }
+        newErrors[inst.id] = `日期衝突：${c.borrower_name} ${c.borrow_date}~${c.expected_return_date}`
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      setSubmitting(false)
+      return
+    }
+
+    // Submit all loans
+    const loanStatus = borrowDate > today() ? 'reserved' : 'borrowed'
+    const instrStatus = loanStatus === 'reserved' ? 'reserved' : 'borrowed'
+
+    const loansToInsert = instruments.map(inst => ({
+      instrument_id: inst.id,
+      employee_id: currentUser.id,
+      borrower_name: currentUser.name,
+      borrow_date: borrowDate,
+      expected_return_date: expectedReturn,
+      purpose: purpose || null,
+      status: loanStatus,
+    }))
+
+    const { error: insertErr } = await supabase.from('loans').insert(loansToInsert)
+    if (insertErr) { setGlobalError('送出失敗：' + insertErr.message); setSubmitting(false); return }
+
+    // Update statuses for available instruments only
+    const availableIds = instruments.filter(i => i.status === 'available').map(i => i.id)
+    if (availableIds.length > 0) {
+      await supabase.from('instruments').update({ status: instrStatus }).in('id', availableIds)
+    }
+
+    onDone()
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      onClick={e => e.target === e.currentTarget && !submitting && onClose()}
+    >
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-900">批量借用（{instruments.length} 件）</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Selected instruments list */}
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            {instruments.map(inst => (
+              <div key={inst.id} className="px-3 py-2.5 border-b last:border-0 flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs text-gray-400 font-mono mr-2">{inst.instrument_no}</span>
+                  <span className="text-sm text-gray-800">{inst.name}</span>
+                  {errors[inst.id] && <p className="text-xs text-red-500 mt-0.5">{errors[inst.id]}</p>}
+                </div>
+                <StatusBadge status={inst.status} size="sm" />
+              </div>
+            ))}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="bg-gray-50 rounded-md px-3 py-2 text-sm text-gray-700">
+              借用人：<span className="font-medium">{currentUser?.name}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">借出日期 *</label>
+                <input
+                  type="date"
+                  value={borrowDate}
+                  onChange={e => setBorrowDate(e.target.value)}
+                  min={today()}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">預計歸還日期 *</label>
+                <input
+                  type="date"
+                  value={expectedReturn}
+                  min={borrowDate}
+                  onChange={e => setExpectedReturn(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">用途說明</label>
+              <textarea
+                value={purpose}
+                onChange={e => setPurpose(e.target.value)}
+                rows={2}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="選填"
+              />
+            </div>
+            {globalError && <p className="text-sm text-red-500">{globalError}</p>}
+            <div className="flex gap-3">
+              <button type="button" onClick={onClose} disabled={submitting}
+                className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
+                取消
+              </button>
+              <button type="submit" disabled={submitting}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md py-2 text-sm font-medium">
+                {submitting ? '送出中...' : '確認借用'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}

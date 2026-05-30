@@ -1,0 +1,84 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+import logo from '../logo.png'
+
+export default function LoginPage() {
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    const { data, error: dbErr } = await supabase
+      .from('employees')
+      .select('*')
+      .eq('username', username.trim())
+      .eq('password', password)
+      .eq('active', true)
+      .single()
+
+    setLoading(false)
+
+    if (dbErr || !data) {
+      setError('帳號或密碼錯誤')
+      return
+    }
+
+    login(data)
+    navigate('/')
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-8">
+        <div className="flex flex-col items-center mb-8">
+          <img src={logo} alt="Envirtrol System" className="h-14 w-auto mb-2" />
+          <p className="text-sm font-bold" style={{ color: '#7B1818' }}>大群儀器管理系統</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">帳號</label>
+            <input
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="請輸入帳號"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">密碼</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="請輸入密碼"
+            />
+          </div>
+          {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md py-2.5 text-sm font-medium transition-colors"
+          >
+            {loading ? '登入中...' : '登入'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
