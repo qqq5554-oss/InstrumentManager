@@ -116,6 +116,8 @@ function InstrumentsTab() {
   )
 }
 
+const DEPARTMENTS = ['管理部', '企劃部', '專案部']
+
 function EmployeesTab() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
@@ -147,7 +149,7 @@ function EmployeesTab() {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>{['姓名','部門','狀態','操作'].map(h => (
+              <tr>{['姓名','部門','權限','狀態','操作'].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
               ))}</tr>
             </thead>
@@ -158,6 +160,11 @@ function EmployeesTab() {
                 <tr key={emp.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{emp.name}</td>
                   <td className="px-4 py-3 text-gray-500">{emp.department || '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${emp.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {emp.role === 'admin' ? '管理員' : '一般'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${emp.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
                       {emp.active ? '啟用' : '停用'}
@@ -173,7 +180,6 @@ function EmployeesTab() {
                   </td>
                 </tr>
               ))}
-
             </tbody>
           </table>
         </div>
@@ -188,7 +194,8 @@ function EmployeeFormModal({ employee, onClose, onSaved }: {
 }) {
   const [name, setName] = useState(employee?.name ?? '')
   const [department, setDepartment] = useState(employee?.department ?? '')
-  const [password, setPassword] = useState('')
+  const [role, setRole] = useState<'admin' | 'user'>(employee?.role ?? 'user')
+  const [password, setPassword] = useState(employee?.password ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -197,16 +204,17 @@ function EmployeeFormModal({ employee, onClose, onSaved }: {
     if (!name.trim()) { setError('請填寫姓名'); return }
     setSaving(true)
 
-    const payload: Partial<Employee> & { password?: string } = {
+    const payload: Partial<Employee> = {
       name: name.trim(),
-      department: department.trim() || null,
+      department: department || null,
+      role,
       active: true,
+      password: password || null,
     }
-    if (password) payload.password = password
 
     const { error: err } = employee
       ? await supabase.from('employees').update(payload).eq('id', employee.id)
-      : await supabase.from('employees').insert({ ...payload, password: password || null })
+      : await supabase.from('employees').insert(payload)
 
     if (err) { setError('儲存失敗：' + err.message); setSaving(false); return }
     onSaved(); onClose()
@@ -222,24 +230,33 @@ function EmployeeFormModal({ employee, onClose, onSaved }: {
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-3">
-          {[
-            { label: '姓名 *', value: name, set: setName, type: 'text' },
-            { label: '部門', value: department, set: setDepartment, type: 'text' },
-          ].map(({ label, value, set, type }) => (
-            <div key={label}>
-              <label className="block text-xs text-gray-500 mb-1">{label}</label>
-              <input type={type} value={value} onChange={e => set(e.target.value)}
-                required={label.endsWith('*')}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-          ))}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">
-              {employee ? '新密碼（不填則保持不變）' : '密碼'}
-            </label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              required={!employee}
+            <label className="block text-xs text-gray-500 mb-1">姓名 *</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} required
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">部門</label>
+            <select value={department} onChange={e => setDepartment(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="">— 不指定 —</option>
+              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">權限</label>
+            <select value={role} onChange={e => setRole(e.target.value as 'admin' | 'user')}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="user">一般（僅借用）</option>
+              <option value="admin">管理員（全部功能）</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">密碼</label>
+            <input type="text" value={password} onChange={e => setPassword(e.target.value)}
+              required={!employee}
+              placeholder={employee ? '不填則保持不變' : ''}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-3 justify-end pt-1">
