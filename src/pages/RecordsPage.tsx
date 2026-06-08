@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import type { Loan } from '../types'
 
 interface LoanWithInstrument extends Omit<Loan, 'instruments'> {
@@ -14,6 +15,8 @@ type RenderItem =
 const today = () => format(new Date(), 'yyyy-MM-dd')
 
 export default function RecordsPage() {
+  const { currentUser } = useAuth()
+  const isAdmin = currentUser?.role === 'admin'
   const [loans, setLoans] = useState<LoanWithInstrument[]>([])
   const [loading, setLoading] = useState(true)
   const [returning, setReturning] = useState<string | null>(null)
@@ -165,7 +168,7 @@ export default function RecordsPage() {
                                 {item.activeLoans.length > 0 ? `${item.activeLoans.length} 件借用中` : '已全部歸還'}
                               </span>
                             </div>
-                            {item.activeLoans.length > 0 && (
+                            {item.activeLoans.length > 0 && isAdmin && (
                               <button
                                 onClick={() => handleReturnProject(item.projectName, item.activeLoans)}
                                 disabled={isReturning}
@@ -203,7 +206,7 @@ export default function RecordsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        {loan.status !== 'returned' && (
+                        {loan.status !== 'returned' && (isAdmin || loan.employee_id === currentUser?.id) && (
                           <button
                             onClick={() => handleReturn(loan)}
                             disabled={returning === loan.id || (returningProject !== null && returningProject === loan.project_name)}
