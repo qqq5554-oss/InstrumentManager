@@ -28,6 +28,7 @@ export interface Employee {
   active: boolean
   username: string | null
   password: string | null
+  role: 'admin' | 'user'
   created_at: string
 }
 

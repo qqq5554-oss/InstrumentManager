@@ -7,6 +7,8 @@ import RecordsPage from './pages/RecordsPage'
 import AdminPage from './pages/AdminPage'
 
 function ProtectedLayout() {
+  const { currentUser } = useAuth()
+  const isAdmin = currentUser?.role === 'admin'
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -14,7 +16,7 @@ function ProtectedLayout() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/records" element={<RecordsPage />} />
-          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin" element={isAdmin ? <AdminPage /> : <Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>
