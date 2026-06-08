@@ -41,6 +41,7 @@ export interface Loan {
   expected_return_date: string
   actual_return_date: string | null
   purpose: string | null
+  project_name: string | null
   status: 'borrowed' | 'reserved' | 'returned'
   created_at: string
   instruments?: Pick<Instrument, 'name' | 'instrument_no'>

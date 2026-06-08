@@ -17,6 +17,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
   const { currentUser } = useAuth()
   const [borrowDate, setBorrowDate] = useState(today())
   const [expectedReturn, setExpectedReturn] = useState('')
+  const [projectName, setProjectName] = useState('')
   const [purpose, setPurpose] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -35,7 +36,6 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
 
     setSubmitting(true)
 
-    // Check conflicts for all instruments in parallel
     const conflictChecks = await Promise.all(
       instruments.map(async inst => {
         const { data } = await supabase
@@ -63,7 +63,6 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
       return
     }
 
-    // Submit all loans
     const loanStatus = borrowDate > today() ? 'reserved' : 'borrowed'
     const instrStatus = loanStatus === 'reserved' ? 'reserved' : 'borrowed'
 
@@ -73,14 +72,14 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
       borrower_name: currentUser.name,
       borrow_date: borrowDate,
       expected_return_date: expectedReturn,
-      purpose: purpose || null,
+      project_name: projectName.trim() || null,
+      purpose: purpose.trim() || null,
       status: loanStatus,
     }))
 
     const { error: insertErr } = await supabase.from('loans').insert(loansToInsert)
     if (insertErr) { setGlobalError('送出失敗：' + insertErr.message); setSubmitting(false); return }
 
-    // Update statuses for available instruments only
     const availableIds = instruments.filter(i => i.status === 'available').map(i => i.id)
     if (availableIds.length > 0) {
       await supabase.from('instruments').update({ status: instrStatus }).in('id', availableIds)
@@ -105,7 +104,6 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Selected instruments list */}
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             {instruments.map(inst => (
               <div key={inst.id} className="px-3 py-2.5 border-b last:border-0 flex items-center justify-between gap-2">
@@ -122,6 +120,16 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="bg-gray-50 rounded-md px-3 py-2 text-sm text-gray-700">
               借用人：<span className="font-medium">{currentUser?.name}</span>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">專案名稱（選填）</label>
+              <input
+                type="text"
+                value={projectName}
+                onChange={e => setProjectName(e.target.value)}
+                placeholder="例：A棟裝修工程、Q3校正作業..."
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -148,7 +156,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
               </div>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">用途說明</label>
+              <label className="block text-xs text-gray-500 mb-1">備註說明（選填）</label>
               <textarea
                 value={purpose}
                 onChange={e => setPurpose(e.target.value)}
