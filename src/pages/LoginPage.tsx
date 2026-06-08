@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -7,10 +7,16 @@ import logo from '../logo.png'
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [username, setUsername] = useState('')
+  const [employees, setEmployees] = useState<{ id: string; name: string }[]>([])
+  const [selectedName, setSelectedName] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    supabase.from('employees').select('id, name').eq('active', true).order('name')
+      .then(({ data }) => { if (data) setEmployees(data) })
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,7 +26,7 @@ export default function LoginPage() {
     const { data, error: dbErr } = await supabase
       .from('employees')
       .select('*')
-      .eq('username', username.trim())
+      .eq('name', selectedName)
       .eq('password', password)
       .eq('active', true)
       .single()
@@ -28,7 +34,7 @@ export default function LoginPage() {
     setLoading(false)
 
     if (dbErr || !data) {
-      setError('帳號或密碼錯誤')
+      setError('密碼錯誤')
       return
     }
 
@@ -46,16 +52,18 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">帳號</label>
-            <input
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
+            <label className="block text-xs text-gray-500 mb-1">人員</label>
+            <select
+              value={selectedName}
+              onChange={e => setSelectedName(e.target.value)}
               required
-              autoComplete="username"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="請輸入帳號"
-            />
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="">請選擇人員</option>
+              {employees.map(emp => (
+                <option key={emp.id} value={emp.name}>{emp.name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">密碼</label>

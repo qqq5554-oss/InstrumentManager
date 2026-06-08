@@ -147,18 +147,17 @@ function EmployeesTab() {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>{['姓名','部門','帳號','狀態','操作'].map(h => (
+              <tr>{['姓名','部門','狀態','操作'].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
               ))}</tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {employees.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400">尚無人員資料</td></tr>
+                <tr><td colSpan={4} className="px-4 py-10 text-center text-gray-400">尚無人員資料</td></tr>
               ) : employees.map(emp => (
                 <tr key={emp.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{emp.name}</td>
                   <td className="px-4 py-3 text-gray-500">{emp.department || '—'}</td>
-                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{emp.username || '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${emp.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
                       {emp.active ? '啟用' : '停用'}
@@ -188,7 +187,6 @@ function EmployeeFormModal({ employee, onClose, onSaved }: {
 }) {
   const [name, setName] = useState(employee?.name ?? '')
   const [department, setDepartment] = useState(employee?.department ?? '')
-  const [username, setUsername] = useState(employee?.username ?? '')
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -201,7 +199,6 @@ function EmployeeFormModal({ employee, onClose, onSaved }: {
     const payload: Partial<Employee> & { password?: string } = {
       name: name.trim(),
       department: department.trim() || null,
-      username: username.trim() || null,
       active: true,
     }
     if (password) payload.password = password
@@ -227,7 +224,6 @@ function EmployeeFormModal({ employee, onClose, onSaved }: {
           {[
             { label: '姓名 *', value: name, set: setName, type: 'text' },
             { label: '部門', value: department, set: setDepartment, type: 'text' },
-            { label: '帳號', value: username, set: setUsername, type: 'text' },
           ].map(({ label, value, set, type }) => (
             <div key={label}>
               <label className="block text-xs text-gray-500 mb-1">{label}</label>
