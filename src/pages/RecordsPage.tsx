@@ -206,7 +206,7 @@ export default function RecordsPage() {
                         {loan.status !== 'returned' && (
                           <button
                             onClick={() => handleReturn(loan)}
-                            disabled={returning === loan.id || returningProject === loan.project_name}
+                            disabled={returning === loan.id || (returningProject !== null && returningProject === loan.project_name)}
                             className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-md font-medium transition-colors"
                           >
                             {returning === loan.id ? '處理中...' : '歸還'}
