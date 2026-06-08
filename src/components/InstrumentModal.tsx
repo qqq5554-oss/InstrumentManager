@@ -90,6 +90,24 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
 
   const activeLoans = loans.filter(l => l.status === 'borrowed' || l.status === 'reserved')
 
+  const [returning, setReturning] = useState<string | null>(null)
+
+  const handleReturn = async (loan: Loan) => {
+    setReturning(loan.id)
+    await supabase.from('loans').update({ actual_return_date: today(), status: 'returned' }).eq('id', loan.id)
+    const { data: remaining } = await supabase
+      .from('loans').select('id')
+      .eq('instrument_id', instrument.id)
+      .in('status', ['borrowed', 'reserved'])
+      .neq('id', loan.id)
+    if (!remaining || remaining.length === 0) {
+      await supabase.from('instruments').update({ status: 'available' }).eq('id', instrument.id)
+    }
+    await fetchLoans()
+    await onRefresh()
+    setReturning(null)
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
@@ -152,6 +170,15 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
                     </span>
                     <span className="font-medium">{l.borrower_name}</span>
                     <span className="text-gray-400">{l.borrow_date} ~ {l.expected_return_date}</span>
+                    {l.employee_id === currentUser?.id && (
+                      <button
+                        onClick={() => handleReturn(l)}
+                        disabled={returning === l.id}
+                        className="ml-auto px-2.5 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors"
+                      >
+                        {returning === l.id ? '處理中...' : '歸還'}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
