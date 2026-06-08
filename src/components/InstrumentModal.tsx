@@ -23,8 +23,13 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
 
   const [borrowDate, setBorrowDate] = useState(today())
   const [expectedReturn, setExpectedReturn] = useState('')
-
   const [purpose, setPurpose] = useState('')
+
+  const [returning, setReturning] = useState<string | null>(null)
+  const [extendingLoanId, setExtendingLoanId] = useState<string | null>(null)
+  const [extendDate, setExtendDate] = useState('')
+  const [extendReason, setExtendReason] = useState('')
+  const [extendSubmitting, setExtendSubmitting] = useState(false)
 
   const activeLoan = loans.find(l => l.status === 'borrowed')
 
@@ -45,7 +50,6 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     if (!borrowDate || !expectedReturn) { setError('請填寫借出日期與歸還日期'); return }
     if (!currentUser) { setError('請先登入'); return }
 
-    // Date conflict check
     const { data: conflicts } = await supabase
       .from('loans')
       .select('id, borrower_name, borrow_date, expected_return_date')
@@ -75,7 +79,6 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
 
     if (loanErr) { setError('申請失敗：' + loanErr.message); setSubmitting(false); return }
 
-    // Only update instrument status if it's currently available
     if (instrument.status === 'available') {
       await supabase.from('instruments').update({ status: loanStatus === 'reserved' ? 'reserved' : 'borrowed' }).eq('id', instrument.id)
     }
@@ -87,10 +90,6 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     setPurpose('')
     setSubmitting(false)
   }
-
-  const activeLoans = loans.filter(l => l.status === 'borrowed' || l.status === 'reserved')
-
-  const [returning, setReturning] = useState<string | null>(null)
 
   const handleReturn = async (loan: Loan) => {
     setReturning(loan.id)
@@ -107,6 +106,26 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     await onRefresh()
     setReturning(null)
   }
+
+  const handleExtend = async (loan: Loan) => {
+    if (!extendDate || !extendReason.trim()) return
+    setExtendSubmitting(true)
+    const note = `[延長至 ${extendDate}，原因：${extendReason.trim()}]`
+    const newPurpose = loan.purpose ? `${loan.purpose}\n${note}` : note
+    await supabase.from('loans').update({
+      expected_return_date: extendDate,
+      purpose: newPurpose,
+    }).eq('id', loan.id)
+    await fetchLoans()
+    await onRefresh()
+    setExtendingLoanId(null)
+    setExtendDate('')
+    setExtendReason('')
+    setExtendSubmitting(false)
+  }
+
+  const activeLoans = loans.filter(l => l.status === 'borrowed' || l.status === 'reserved')
+  const todayVal = today()
 
   return (
     <div
@@ -162,25 +181,92 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
           {activeLoans.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
               <p className="text-xs text-blue-600 font-medium mb-2">目前排程</p>
-              <div className="space-y-1">
-                {activeLoans.map(l => (
-                  <div key={l.id} className="flex items-center gap-2 text-xs text-gray-600">
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${l.status === 'borrowed' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>
-                      {l.status === 'borrowed' ? '借出中' : '預約'}
-                    </span>
-                    <span className="font-medium">{l.borrower_name}</span>
-                    <span className="text-gray-400">{l.borrow_date} ~ {l.expected_return_date}</span>
-                    {l.employee_id === currentUser?.id && (
-                      <button
-                        onClick={() => handleReturn(l)}
-                        disabled={returning === l.id}
-                        className="ml-auto px-2.5 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors"
-                      >
-                        {returning === l.id ? '處理中...' : '歸還'}
-                      </button>
-                    )}
-                  </div>
-                ))}
+              <div className="space-y-2">
+                {activeLoans.map(l => {
+                  const daysOverdue = l.expected_return_date < todayVal
+                    ? Math.round((new Date(todayVal).getTime() - new Date(l.expected_return_date).getTime()) / 86400000)
+                    : 0
+                  const isOwn = l.employee_id === currentUser?.id
+
+                  return (
+                    <div key={l.id}>
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${l.status === 'borrowed' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>
+                          {l.status === 'borrowed' ? '借出中' : '預約'}
+                        </span>
+                        {daysOverdue > 0 && (
+                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-orange-200 text-orange-800">
+                            逾期 {daysOverdue} 天
+                          </span>
+                        )}
+                        <span className="font-medium">{l.borrower_name}</span>
+                        <span className="text-gray-400">{l.borrow_date} ~ {l.expected_return_date}</span>
+                        {isOwn && (
+                          <div className="ml-auto flex gap-1.5 shrink-0">
+                            <button
+                              onClick={() => {
+                                setExtendingLoanId(extendingLoanId === l.id ? null : l.id)
+                                setExtendDate('')
+                                setExtendReason('')
+                              }}
+                              className="px-2 py-0.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-medium transition-colors"
+                            >
+                              申請延長
+                            </button>
+                            <button
+                              onClick={() => handleReturn(l)}
+                              disabled={returning === l.id}
+                              className="px-2.5 py-0.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors"
+                            >
+                              {returning === l.id ? '處理中...' : '歸還'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Extension form */}
+                      {extendingLoanId === l.id && (
+                        <div className="mt-2 p-3 bg-white rounded-md border border-blue-200 space-y-2">
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">新的歸還日期 *</label>
+                            <input
+                              type="date"
+                              value={extendDate}
+                              min={l.expected_return_date > todayVal ? l.expected_return_date : todayVal}
+                              onChange={e => setExtendDate(e.target.value)}
+                              className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">延長原因 *</label>
+                            <textarea
+                              value={extendReason}
+                              onChange={e => setExtendReason(e.target.value)}
+                              rows={2}
+                              placeholder="請說明延長原因..."
+                              className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setExtendingLoanId(null)}
+                              className="flex-1 px-3 py-1.5 text-xs text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                            >
+                              取消
+                            </button>
+                            <button
+                              onClick={() => handleExtend(l)}
+                              disabled={!extendDate || !extendReason.trim() || extendSubmitting}
+                              className="flex-1 px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded font-medium transition-colors"
+                            >
+                              {extendSubmitting ? '送出中...' : '確認延長'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -249,7 +335,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
                     <span className="font-medium text-gray-800">{loan.borrower_name}</span>
                     <span className="text-gray-500">{loan.borrow_date} → {loan.expected_return_date}</span>
                     {loan.actual_return_date && <span className="text-green-600">歸還：{loan.actual_return_date}</span>}
-                    {loan.purpose && <span className="text-gray-400 w-full">{loan.purpose}</span>}
+                    {loan.purpose && <span className="text-gray-400 w-full whitespace-pre-line">{loan.purpose}</span>}
                     <span className={`ml-auto px-2 py-0.5 rounded-full font-medium ${
                       loan.status === 'returned' ? 'bg-gray-100 text-gray-500' :
                       loan.status === 'borrowed' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'
