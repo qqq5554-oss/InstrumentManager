@@ -339,12 +339,9 @@ function InstrumentCard({
         </div>
       </div>
       <p className="font-semibold text-gray-900 text-sm leading-snug mb-3 line-clamp-2">{instrument.name}</p>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-end justify-between gap-2">
         <span className="text-xs text-gray-400 truncate">{instrument.location || '—'}</span>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {activeLoan && !multiMode && (
-            <span className="text-xs text-gray-400">{activeLoan.borrower_name}</span>
-          )}
+        <div className="flex flex-col items-end gap-1 shrink-0">
           {activeLoan?.employee_id === currentUserId && !multiMode && onReturn && (
             <button
               onClick={handleReturn}
@@ -354,7 +351,12 @@ function InstrumentCard({
               {returning ? '...' : '歸還'}
             </button>
           )}
-          <StatusBadge status={instrument.status} size="sm" />
+          <div className="flex items-center gap-1.5">
+            {activeLoan && !multiMode && (
+              <span className="text-xs text-gray-400">{activeLoan.borrower_name}</span>
+            )}
+            <StatusBadge status={instrument.status} size="sm" />
+          </div>
         </div>
       </div>
     </div>
