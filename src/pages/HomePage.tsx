@@ -122,7 +122,10 @@ export default function HomePage() {
       {activeLoans.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse inline-block" />
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+            </span>
             <h2 className="text-sm font-semibold text-gray-700">目前使用狀況</h2>
             <span className="text-xs text-gray-400 ml-1">
               {stats.borrowed > 0 && `借出中 ${stats.borrowed} 件`}
