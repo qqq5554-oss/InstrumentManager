@@ -20,11 +20,8 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
   const [error, setError] = useState('')
 
   const isNotAvailable = instrument.status !== 'available'
-  const minBorrowDate = isNotAvailable ? (() => {
-    const d = new Date(); d.setDate(d.getDate() + 1); return format(d, 'yyyy-MM-dd')
-  })() : today()
 
-  const [borrowDate, setBorrowDate] = useState(minBorrowDate)
+  const [borrowDate, setBorrowDate] = useState(today())
   const [expectedReturn, setExpectedReturn] = useState('')
 
   const [purpose, setPurpose] = useState('')
@@ -85,7 +82,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
 
     await fetchLoans()
     await onRefresh()
-    setBorrowDate(minBorrowDate)
+    setBorrowDate(today())
     setExpectedReturn('')
     setPurpose('')
     setSubmitting(false)
@@ -172,13 +169,11 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    {isNotAvailable ? '預約起始日 *（需為明天以後）' : '借出日期 *'}
-                  </label>
+                  <label className="block text-xs text-gray-500 mb-1">借出日期 *</label>
                   <input
                     type="date"
                     value={borrowDate}
-                    min={minBorrowDate}
+                    min={today()}
                     onChange={e => setBorrowDate(e.target.value)}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
