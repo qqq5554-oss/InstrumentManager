@@ -62,40 +62,69 @@ function InstrumentsTab() {
           + 新增儀器
         </button>
       </div>
-      {loading ? <div className="text-center py-20 text-gray-400">載入中...</div> : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>{['編號','類別','名稱','型號','放置地點','保管人','校正週期','狀態','操作'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                ))}</tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {instruments.length === 0 ? (
-                  <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400">尚無儀器資料</td></tr>
-                ) : instruments.map(inst => (
-                  <tr key={inst.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{inst.instrument_no}</td>
-                    <td className="px-4 py-3"><span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{inst.category}</span></td>
-                    <td className="px-4 py-3 font-medium text-gray-900 max-w-48 truncate">{inst.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{inst.model || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{inst.location || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{inst.custodian || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{inst.calibration_cycle || '—'}</td>
-                    <td className="px-4 py-3"><StatusBadge status={inst.status} size="sm" /></td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => { setEditing(inst); setFormOpen(true) }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">編輯</button>
-                        <button onClick={() => setConfirmDelete(inst)} className="text-xs text-red-500 hover:text-red-700 font-medium">刪除</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {loading ? <div className="text-center py-20 text-gray-400">載入中...</div> : instruments.length === 0 ? (
+        <div className="text-center py-10 text-gray-400">尚無儀器資料</div>
+      ) : (
+        <>
+          {/* 手機卡片 */}
+          <div className="sm:hidden space-y-3">
+            {instruments.map(inst => (
+              <div key={inst.id} className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-mono text-xs text-gray-400 shrink-0">{inst.instrument_no}</span>
+                    <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full shrink-0">{inst.category}</span>
+                  </div>
+                  <StatusBadge status={inst.status} size="sm" />
+                </div>
+                <p className="font-semibold text-gray-900 text-sm mb-1">{inst.name}</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-gray-400 space-y-0.5">
+                    {inst.model && <p>{inst.model}</p>}
+                    {inst.location && <p>{inst.location}</p>}
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button onClick={() => { setEditing(inst); setFormOpen(true) }} className="text-sm text-blue-600 hover:text-blue-800 font-medium">編輯</button>
+                    <button onClick={() => setConfirmDelete(inst)} className="text-sm text-red-500 hover:text-red-700 font-medium">刪除</button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+
+          {/* 桌機表格 */}
+          <div className="hidden sm:block bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>{['編號','類別','名稱','型號','放置地點','保管人','校正週期','狀態','操作'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {instruments.map(inst => (
+                    <tr key={inst.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{inst.instrument_no}</td>
+                      <td className="px-4 py-3"><span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{inst.category}</span></td>
+                      <td className="px-4 py-3 font-medium text-gray-900 max-w-48 truncate">{inst.name}</td>
+                      <td className="px-4 py-3 text-gray-500">{inst.model || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500">{inst.location || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500">{inst.custodian || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500">{inst.calibration_cycle || '—'}</td>
+                      <td className="px-4 py-3"><StatusBadge status={inst.status} size="sm" /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => { setEditing(inst); setFormOpen(true) }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">編輯</button>
+                          <button onClick={() => setConfirmDelete(inst)} className="text-xs text-red-500 hover:text-red-700 font-medium">刪除</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
       {formOpen && <InstrumentFormModal instrument={editing} onClose={() => { setFormOpen(false); setEditing(null) }} onSaved={fetchInstruments} />}
       {confirmDelete && (
