@@ -6,6 +6,7 @@ interface Props {
   instrument: Instrument | null
   onClose: () => void
   onSaved: () => void
+  onDelete?: () => void
 }
 
 type FormData = Omit<Instrument, 'id' | 'created_at'>
@@ -54,7 +55,7 @@ const toForm = (inst: Instrument): FormData => ({
 
 const clean = (v: string | null | undefined) => v?.trim() || null
 
-export default function InstrumentFormModal({ instrument, onClose, onSaved }: Props) {
+export default function InstrumentFormModal({ instrument, onClose, onSaved, onDelete }: Props) {
   const [form, setForm] = useState<FormData>(instrument ? toForm(instrument) : EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -228,22 +229,36 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved }: Pr
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
-          <div className="flex gap-3 justify-end pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md font-medium"
-            >
-              {saving ? '儲存中...' : instrument ? '儲存變更' : '新增儀器'}
-            </button>
+          <div className="flex items-center justify-between pt-2">
+            <div>
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  disabled={saving}
+                  className="px-4 py-2 text-sm text-red-500 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50"
+                >
+                  刪除儀器
+                </button>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md font-medium"
+              >
+                {saving ? '儲存中...' : instrument ? '儲存變更' : '新增儀器'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

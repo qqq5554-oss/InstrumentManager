@@ -69,7 +69,11 @@ function InstrumentsTab() {
           {/* 手機卡片 */}
           <div className="sm:hidden space-y-3">
             {instruments.map(inst => (
-              <div key={inst.id} className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3">
+              <div
+                key={inst.id}
+                onClick={() => { setEditing(inst); setFormOpen(true) }}
+                className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3 cursor-pointer active:bg-gray-50"
+              >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-mono text-xs text-gray-400 shrink-0">{inst.instrument_no}</span>
@@ -78,15 +82,9 @@ function InstrumentsTab() {
                   <StatusBadge status={inst.status} size="sm" />
                 </div>
                 <p className="font-semibold text-gray-900 text-sm mb-1">{inst.name}</p>
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-gray-400 space-y-0.5">
-                    {inst.model && <p>{inst.model}</p>}
-                    {inst.location && <p>{inst.location}</p>}
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button onClick={() => { setEditing(inst); setFormOpen(true) }} className="text-sm text-blue-600 hover:text-blue-800 font-medium">編輯</button>
-                    <button onClick={() => setConfirmDelete(inst)} className="text-sm text-red-500 hover:text-red-700 font-medium">刪除</button>
-                  </div>
+                <div className="text-xs text-gray-400 space-y-0.5">
+                  {inst.model && <p>{inst.model}</p>}
+                  {inst.location && <p>{inst.location}</p>}
                 </div>
               </div>
             ))}
@@ -126,7 +124,7 @@ function InstrumentsTab() {
           </div>
         </>
       )}
-      {formOpen && <InstrumentFormModal instrument={editing} onClose={() => { setFormOpen(false); setEditing(null) }} onSaved={fetchInstruments} />}
+      {formOpen && <InstrumentFormModal instrument={editing} onClose={() => { setFormOpen(false); setEditing(null) }} onSaved={fetchInstruments} onDelete={editing ? () => { setFormOpen(false); setConfirmDelete(editing); setEditing(null) } : undefined} />}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={e => e.target === e.currentTarget && !deleting && setConfirmDelete(null)}>
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
