@@ -145,44 +145,75 @@ function EmployeesTab() {
           + 新增人員
         </button>
       </div>
-      {loading ? <div className="text-center py-20 text-gray-400">載入中...</div> : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>{['姓名','部門','權限','狀態','操作'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {employees.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400">尚無人員資料</td></tr>
-              ) : employees.map(emp => (
-                <tr key={emp.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{emp.name}</td>
-                  <td className="px-4 py-3 text-gray-500">{emp.department || '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${emp.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+      {loading ? <div className="text-center py-20 text-gray-400">載入中...</div> : employees.length === 0 ? (
+        <div className="text-center py-10 text-gray-400">尚無人員資料</div>
+      ) : (
+        <>
+          {/* 手機卡片 */}
+          <div className="sm:hidden space-y-3">
+            {employees.map(emp => (
+              <div key={emp.id} className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold text-gray-900">{emp.name}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${emp.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
                       {emp.role === 'admin' ? '管理員' : '一般'}
                     </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${emp.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${emp.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
                       {emp.active ? '啟用' : '停用'}
                     </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => { setEditing(emp); setFormOpen(true) }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">編輯</button>
-                      <button onClick={() => toggleActive(emp)} className={`text-xs font-medium ${emp.active ? 'text-amber-500 hover:text-amber-700' : 'text-green-600 hover:text-green-800'}`}>
-                        {emp.active ? '停用' : '啟用'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">{emp.department || '—'}</span>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => { setEditing(emp); setFormOpen(true) }} className="text-sm text-blue-600 hover:text-blue-800 font-medium">編輯</button>
+                    <button onClick={() => toggleActive(emp)} className={`text-sm font-medium ${emp.active ? 'text-amber-500 hover:text-amber-700' : 'text-green-600 hover:text-green-800'}`}>
+                      {emp.active ? '停用' : '啟用'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 桌機表格 */}
+          <div className="hidden sm:block bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>{['姓名','部門','權限','狀態','操作'].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {employees.map(emp => (
+                  <tr key={emp.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{emp.name}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{emp.department || '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${emp.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {emp.role === 'admin' ? '管理員' : '一般'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${emp.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                        {emp.active ? '啟用' : '停用'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => { setEditing(emp); setFormOpen(true) }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">編輯</button>
+                        <button onClick={() => toggleActive(emp)} className={`text-xs font-medium ${emp.active ? 'text-amber-500 hover:text-amber-700' : 'text-green-600 hover:text-green-800'}`}>
+                          {emp.active ? '停用' : '啟用'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
       {formOpen && <EmployeeFormModal employee={editing} onClose={() => { setFormOpen(false); setEditing(null) }} onSaved={fetchEmployees} />}
     </>
