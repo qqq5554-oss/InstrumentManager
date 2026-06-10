@@ -24,6 +24,13 @@ export interface Instrument {
   created_at: string
 }
 
+export interface InstrumentCategory {
+  id: string
+  name: string
+  color: string
+  created_at: string
+}
+
 export interface Employee {
   id: string
   name: string
