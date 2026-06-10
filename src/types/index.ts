@@ -18,6 +18,9 @@ export interface Instrument {
   calibration_cycle: string | null
   calibration_notes: string | null
   status: 'available' | 'borrowed' | 'reserved'
+  photo_url: string | null
+  report_url: string | null
+  subcategory: string | null
   created_at: string
 }
 

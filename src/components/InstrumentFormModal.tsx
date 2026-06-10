@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Instrument } from '../types'
 
@@ -15,6 +15,7 @@ const EMPTY: FormData = {
   instrument_no: '',
   name: '',
   category: '儀器',
+  subcategory: null,
   model: '',
   serial_no: '',
   manufacturer: '',
@@ -30,12 +31,15 @@ const EMPTY: FormData = {
   calibration_cycle: '',
   calibration_notes: '',
   status: 'available',
+  photo_url: null,
+  report_url: null,
 }
 
 const toForm = (inst: Instrument): FormData => ({
   instrument_no: inst.instrument_no,
   name: inst.name,
   category: inst.category,
+  subcategory: inst.subcategory,
   model: inst.model ?? '',
   serial_no: inst.serial_no ?? '',
   manufacturer: inst.manufacturer ?? '',
@@ -51,16 +55,100 @@ const toForm = (inst: Instrument): FormData => ({
   calibration_cycle: inst.calibration_cycle ?? '',
   calibration_notes: inst.calibration_notes ?? '',
   status: inst.status,
+  photo_url: inst.photo_url,
+  report_url: inst.report_url,
 })
 
 const clean = (v: string | null | undefined) => v?.trim() || null
+
+const compressImage = (file: File): Promise<Blob> =>
+  new Promise(resolve => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const MAX = 1200
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+      const c = document.createElement('canvas')
+      c.width = Math.round(img.width * scale)
+      c.height = Math.round(img.height * scale)
+      c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height)
+      c.toBlob(b => resolve(b!), 'image/jpeg', 0.82)
+    }
+    img.src = url
+  })
 
 export default function InstrumentFormModal({ instrument, onClose, onSaved, onDelete }: Props) {
   const [form, setForm] = useState<FormData>(instrument ? toForm(instrument) : EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Photo state
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(instrument?.photo_url ?? null)
+
+  // Report state
+  const [reportFile, setReportFile] = useState<File | null>(null)
+  const [reportFileName, setReportFileName] = useState<string | null>(null)
+
+  // Subcategory autocomplete
+  const [subcategoryOptions, setSubcategoryOptions] = useState<string[]>([])
+
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const reportInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    supabase
+      .from('instruments')
+      .select('subcategory')
+      .not('subcategory', 'is', null)
+      .then(({ data }) => {
+        if (data) {
+          const unique = Array.from(new Set(data.map(r => r.subcategory as string).filter(Boolean)))
+          setSubcategoryOptions(unique)
+        }
+      })
+  }, [])
+
   const set = (field: keyof FormData, value: string) => setForm(f => ({ ...f, [field]: value }))
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoFile(file)
+    const objectUrl = URL.createObjectURL(file)
+    setPhotoPreview(objectUrl)
+  }
+
+  const handleReportChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setReportFile(file)
+    setReportFileName(file.name)
+  }
+
+  const uploadPhoto = async (id: string): Promise<string | null> => {
+    if (!photoFile) return null
+    const compressed = await compressImage(photoFile)
+    const path = `${id}/${Date.now()}.jpg`
+    const { error: uploadErr } = await supabase.storage
+      .from('instrument-photos')
+      .upload(path, compressed, { contentType: 'image/jpeg', upsert: true })
+    if (uploadErr) throw uploadErr
+    const { data } = supabase.storage.from('instrument-photos').getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  const uploadReport = async (id: string): Promise<string | null> => {
+    if (!reportFile) return null
+    const path = `${id}/${Date.now()}_report.pdf`
+    const { error: uploadErr } = await supabase.storage
+      .from('instrument-reports')
+      .upload(path, reportFile, { contentType: 'application/pdf', upsert: true })
+    if (uploadErr) throw uploadErr
+    const { data } = supabase.storage.from('instrument-reports').getPublicUrl(path)
+    return data.publicUrl
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,6 +163,7 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
       instrument_no: form.instrument_no.trim(),
       name: form.name.trim(),
       category: form.category,
+      subcategory: clean(form.subcategory as string | null),
       model: clean(form.model as string),
       serial_no: clean(form.serial_no as string),
       manufacturer: clean(form.manufacturer as string),
@@ -92,21 +181,50 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
       status: form.status,
     }
 
-    let err
-    if (instrument) {
-      ;({ error: err } = await supabase.from('instruments').update(payload).eq('id', instrument.id))
-    } else {
-      ;({ error: err } = await supabase.from('instruments').insert(payload))
-    }
+    try {
+      let savedId: string
 
-    if (err) {
-      setError('儲存失敗：' + err.message)
+      if (instrument) {
+        const { error: err } = await supabase
+          .from('instruments')
+          .update(payload)
+          .eq('id', instrument.id)
+        if (err) throw err
+        savedId = instrument.id
+      } else {
+        const { data, error: err } = await supabase
+          .from('instruments')
+          .insert(payload)
+          .select('id')
+          .single()
+        if (err) throw err
+        savedId = data.id
+      }
+
+      // Upload files in parallel
+      const [newPhotoUrl, newReportUrl] = await Promise.all([
+        uploadPhoto(savedId),
+        uploadReport(savedId),
+      ])
+
+      // If new URLs exist, update the record
+      if (newPhotoUrl !== null || newReportUrl !== null) {
+        const updates: Partial<Instrument> = {}
+        if (newPhotoUrl !== null) updates.photo_url = newPhotoUrl
+        if (newReportUrl !== null) updates.report_url = newReportUrl
+        const { error: updateErr } = await supabase
+          .from('instruments')
+          .update(updates)
+          .eq('id', savedId)
+        if (updateErr) throw updateErr
+      }
+
+      onSaved()
+      onClose()
+    } catch (err: unknown) {
+      setError('儲存失敗：' + (err instanceof Error ? err.message : String(err)))
       setSaving(false)
-      return
     }
-
-    onSaved()
-    onClose()
   }
 
   const Field = ({ label, field, type = 'text', required = false }: {
@@ -162,6 +280,24 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
           </div>
 
           <Field label="儀器名稱" field="name" required />
+
+          {/* Subcategory with datalist */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">儀器分類</label>
+            <input
+              type="text"
+              list="subcategory-list"
+              value={form.subcategory ?? ''}
+              onChange={e => setForm(f => ({ ...f, subcategory: e.target.value || null }))}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="輸入或選擇分類"
+            />
+            <datalist id="subcategory-list">
+              {subcategoryOptions.map(opt => (
+                <option key={opt} value={opt} />
+              ))}
+            </datalist>
+          </div>
 
           {/* Optional fields */}
           <p className="text-xs text-gray-400 font-medium uppercase tracking-wide pt-1">基本資料</p>
@@ -225,6 +361,72 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
               rows={3}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
+          </div>
+
+          {/* Photo upload */}
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide pt-1">照片</p>
+          <div className="flex items-start gap-4">
+            {photoPreview && (
+              <img
+                src={photoPreview}
+                alt="儀器照片"
+                className="w-[150px] h-[150px] object-cover rounded-md border border-gray-200 shrink-0"
+              />
+            )}
+            <div className="flex-1">
+              {!photoPreview && form.photo_url && (
+                <p className="text-xs text-gray-500 mb-2">已有照片</p>
+              )}
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600"
+              >
+                {photoPreview ? '更換照片' : '上傳照片'}
+              </button>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoChange}
+              />
+              {photoFile && (
+                <p className="text-xs text-gray-400 mt-1">{photoFile.name}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Report upload */}
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide pt-1">校正報告</p>
+          <div>
+            {form.report_url && !reportFile && (
+              <a
+                href={form.report_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:underline block mb-2"
+              >
+                查看現有報告
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => reportInputRef.current?.click()}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600"
+            >
+              {reportFile ? '更換報告' : form.report_url ? '上傳新報告' : '上傳報告 PDF'}
+            </button>
+            <input
+              ref={reportInputRef}
+              type="file"
+              accept=".pdf"
+              className="hidden"
+              onChange={handleReportChange}
+            />
+            {reportFileName && (
+              <p className="text-xs text-gray-400 mt-1">{reportFileName}</p>
+            )}
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}

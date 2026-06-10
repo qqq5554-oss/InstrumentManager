@@ -104,17 +104,21 @@ function InstrumentsTab() {
                     <tr key={inst.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{inst.instrument_no}</td>
                       <td className="px-4 py-3"><span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{inst.category}</span></td>
-                      <td className="px-4 py-3 font-medium text-gray-900 max-w-48 truncate">{inst.name}</td>
+                      <td className="px-4 py-3 font-medium max-w-48 truncate">
+                        <button
+                          onClick={() => { setEditing(inst); setFormOpen(true) }}
+                          className="text-blue-600 hover:underline text-left"
+                        >
+                          {inst.name}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-gray-500">{inst.model || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{inst.location || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{inst.custodian || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{inst.calibration_cycle || '—'}</td>
                       <td className="px-4 py-3"><StatusBadge status={inst.status} size="sm" /></td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => { setEditing(inst); setFormOpen(true) }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">編輯</button>
-                          <button onClick={() => setConfirmDelete(inst)} className="text-xs text-red-500 hover:text-red-700 font-medium">刪除</button>
-                        </div>
+                        <button onClick={() => setConfirmDelete(inst)} className="text-xs text-red-500 hover:text-red-700 font-medium">刪除</button>
                       </td>
                     </tr>
                   ))}
