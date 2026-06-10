@@ -278,7 +278,7 @@ function EmployeesTab() {
   const [editing, setEditing] = useState<Employee | null>(null)
 
   const fetchEmployees = async () => {
-    const { data } = await supabase.from('employees').select('*').order('name')
+    const { data } = await supabase.from('employees').select('*').order('role').order('name')
     if (data) setEmployees(data)
     setLoading(false)
   }
@@ -287,8 +287,12 @@ function EmployeesTab() {
 
   const toggleActive = async (emp: Employee) => {
     await supabase.from('employees').update({ active: !emp.active }).eq('id', emp.id)
+    setFormOpen(false)
+    setEditing(null)
     fetchEmployees()
   }
+
+  const openEdit = (emp: Employee) => { setEditing(emp); setFormOpen(true) }
 
   return (
     <>
@@ -305,7 +309,11 @@ function EmployeesTab() {
           {/* 手機卡片 */}
           <div className="sm:hidden space-y-3">
             {employees.map(emp => (
-              <div key={emp.id} className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3">
+              <div
+                key={emp.id}
+                onClick={() => openEdit(emp)}
+                className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3 cursor-pointer active:bg-gray-50"
+              >
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-semibold text-gray-900">{emp.name}</span>
                   <div className="flex items-center gap-1.5">
@@ -317,15 +325,7 @@ function EmployeesTab() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">{emp.department || '—'}</span>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => { setEditing(emp); setFormOpen(true) }} className="text-sm text-blue-600 hover:text-blue-800 font-medium">編輯</button>
-                    <button onClick={() => toggleActive(emp)} className={`text-sm font-medium ${emp.active ? 'text-amber-500 hover:text-amber-700' : 'text-green-600 hover:text-green-800'}`}>
-                      {emp.active ? '停用' : '啟用'}
-                    </button>
-                  </div>
-                </div>
+                <p className="text-sm text-gray-500">{emp.department || '—'}</p>
               </div>
             ))}
           </div>
@@ -334,13 +334,13 @@ function EmployeesTab() {
           <div className="hidden sm:block bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>{['姓名','部門','權限','狀態','操作'].map(h => (
+                <tr>{['姓名','部門','權限','狀態'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
                 ))}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {employees.map(emp => (
-                  <tr key={emp.id} className="hover:bg-gray-50">
+                  <tr key={emp.id} onClick={() => openEdit(emp)} className="hover:bg-gray-50 cursor-pointer">
                     <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{emp.name}</td>
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{emp.department || '—'}</td>
                     <td className="px-4 py-3">
@@ -353,14 +353,6 @@ function EmployeesTab() {
                         {emp.active ? '啟用' : '停用'}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => { setEditing(emp); setFormOpen(true) }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">編輯</button>
-                        <button onClick={() => toggleActive(emp)} className={`text-xs font-medium ${emp.active ? 'text-amber-500 hover:text-amber-700' : 'text-green-600 hover:text-green-800'}`}>
-                          {emp.active ? '停用' : '啟用'}
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -368,19 +360,25 @@ function EmployeesTab() {
           </div>
         </>
       )}
-      {formOpen && <EmployeeFormModal employee={editing} onClose={() => { setFormOpen(false); setEditing(null) }} onSaved={fetchEmployees} />}
+      {formOpen && <EmployeeFormModal
+        employee={editing}
+        onClose={() => { setFormOpen(false); setEditing(null) }}
+        onSaved={fetchEmployees}
+        onToggleActive={editing ? () => toggleActive(editing) : undefined}
+      />}
     </>
   )
 }
 
-function EmployeeFormModal({ employee, onClose, onSaved }: {
-  employee: Employee | null; onClose: () => void; onSaved: () => void
+function EmployeeFormModal({ employee, onClose, onSaved, onToggleActive }: {
+  employee: Employee | null; onClose: () => void; onSaved: () => void; onToggleActive?: () => void
 }) {
   const [name, setName] = useState(employee?.name ?? '')
   const [department, setDepartment] = useState(employee?.department ?? '')
   const [role, setRole] = useState<'admin' | 'user'>(employee?.role ?? 'user')
-  const [password, setPassword] = useState(employee?.password ?? '')
+  const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
+  const [toggling, setToggling] = useState(false)
   const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -388,13 +386,13 @@ function EmployeeFormModal({ employee, onClose, onSaved }: {
     if (!name.trim()) { setError('請填寫姓名'); return }
     setSaving(true)
 
-    const payload: Partial<Employee> = {
+    const payload: Record<string, unknown> = {
       name: name.trim(),
       department: department || null,
       role,
-      active: true,
-      password: password || null,
     }
+    if (!employee) payload.active = true
+    if (!employee || password) payload.password = password || null
 
     const { error: err } = employee
       ? await supabase.from('employees').update(payload).eq('id', employee.id)
@@ -402,6 +400,12 @@ function EmployeeFormModal({ employee, onClose, onSaved }: {
 
     if (err) { setError('儲存失敗：' + err.message); setSaving(false); return }
     onSaved(); onClose()
+  }
+
+  const handleToggle = async () => {
+    if (!onToggleActive) return
+    setToggling(true)
+    await onToggleActive()
   }
 
   return (
@@ -436,18 +440,31 @@ function EmployeeFormModal({ employee, onClose, onSaved }: {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">密碼</label>
+            <label className="block text-xs text-gray-500 mb-1">密碼{employee ? '（不填則保持不變）' : ' *'}</label>
             <input type="text" value={password} onChange={e => setPassword(e.target.value)}
               required={!employee}
-              placeholder={employee ? '不填則保持不變' : ''}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="flex gap-3 justify-end pt-1">
-            <button type="button" onClick={onClose} disabled={saving} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md">取消</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md font-medium">
-              {saving ? '儲存中...' : employee ? '儲存變更' : '新增人員'}
-            </button>
+          <div className="flex items-center justify-between pt-2">
+            <div>
+              {onToggleActive && employee && (
+                <button
+                  type="button"
+                  onClick={handleToggle}
+                  disabled={toggling || saving}
+                  className={`px-4 py-2 text-sm rounded-md border disabled:opacity-50 ${employee.active ? 'text-amber-600 border-amber-200 hover:bg-amber-50' : 'text-green-600 border-green-200 hover:bg-green-50'}`}
+                >
+                  {toggling ? '處理中...' : employee.active ? '停用帳號' : '啟用帳號'}
+                </button>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button type="button" onClick={onClose} disabled={saving} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md">取消</button>
+              <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md font-medium">
+                {saving ? '儲存中...' : employee ? '儲存變更' : '新增人員'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
