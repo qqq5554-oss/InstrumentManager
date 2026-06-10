@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import type { Loan } from '../types'
 import { ReturnTermsModal } from '../components/TermsModal'
+import { notifyLineExtend } from '../lib/lineNotify'
 
 interface LoanWithInstrument extends Omit<Loan, 'instruments'> {
   instruments: { name: string; instrument_no: string } | null
@@ -352,6 +353,14 @@ function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onEx
     if (inst?.status === 'overdue') {
       await supabase.from('instruments').update({ status: 'borrowed' }).eq('id', loan.instrument_id)
     }
+
+    notifyLineExtend({
+      borrowerName: loan.borrower_name,
+      instrumentName: loan.instruments?.name ?? '未知儀器',
+      instrumentNo: loan.instruments?.instrument_no ?? '',
+      newReturnDate: extendDate,
+      reason: extendReason.trim(),
+    })
 
     setExtendSubmitting(false)
     onExtended()

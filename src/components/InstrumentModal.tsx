@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import type { Instrument, Loan } from '../types'
 import StatusBadge from './StatusBadge'
 import { BorrowTermsModal, ReturnTermsModal } from './TermsModal'
-import { notifyLineBorrow } from '../lib/lineNotify'
+import { notifyLineBorrow, notifyLineExtend } from '../lib/lineNotify'
 
 interface Props {
   instrument: Instrument
@@ -170,6 +170,14 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     if (instrument.status === 'overdue') {
       await supabase.from('instruments').update({ status: 'borrowed' }).eq('id', instrument.id)
     }
+
+    notifyLineExtend({
+      borrowerName: loan.borrower_name,
+      instrumentName: instrument.name,
+      instrumentNo: instrument.instrument_no,
+      newReturnDate: extendDate,
+      reason: extendReason.trim(),
+    })
 
     await fetchLoans()
     await onRefresh()
