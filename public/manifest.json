@@ -1,5 +1,5 @@
 {
-  "name": "大群儀器管理系統",
+  "name": "儀器管理",
   "short_name": "儀器管理",
   "description": "大群儀器借用管理系統",
   "start_url": "/InstrumentManager/",
