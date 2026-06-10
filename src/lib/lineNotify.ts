@@ -1,0 +1,21 @@
+const NOTIFY_URL = 'https://opgpfkckgilowudgghuf.supabase.co/functions/v1/line-notify'
+
+export async function notifyLineBorrow(params: {
+  status: 'borrowed' | 'reserved'
+  borrowerName: string
+  instrumentName: string
+  instrumentNo: string
+  projectName: string
+  borrowDate: string
+  expectedReturn: string
+}) {
+  try {
+    await fetch(NOTIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+  } catch {
+    // notification failure should not block the main flow
+  }
+}
