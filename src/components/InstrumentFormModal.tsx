@@ -231,7 +231,7 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-      onClick={e => { if (e.target === e.currentTarget && !saving) { onClose() } else { setCatOpen(false) } }}
+      onClick={e => { if (e.target === e.currentTarget && !saving) { onClose(); setCatOpen(false) } }}
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
@@ -288,7 +288,9 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
                 <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </button>
               {catOpen && (
-                <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setCatOpen(false)} />
+                  <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
                   <button type="button"
                     onClick={() => { setForm(f => ({ ...f, subcategory: null })); setCatOpen(false) }}
                     className="w-full px-3 py-2 text-sm text-left text-gray-400 hover:bg-gray-50">
@@ -304,6 +306,7 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
                     </button>
                   ))}
                 </div>
+                </>
               )}
             </div>
           </div>
