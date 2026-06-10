@@ -1,4 +1,4 @@
-const NOTIFY_URL = 'https://opgpfkckgilowudgghuf.supabase.co/functions/v1/line-notify'
+const NOTIFY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/line-notify`
 
 export async function notifyLineBorrow(params: {
   status: 'borrowed' | 'reserved'

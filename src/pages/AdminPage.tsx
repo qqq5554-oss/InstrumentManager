@@ -278,7 +278,7 @@ function EmployeesTab() {
   const [editing, setEditing] = useState<Employee | null>(null)
 
   const fetchEmployees = async () => {
-    const { data } = await supabase.from('employees').select('*').order('role').order('name')
+    const { data } = await supabase.from('employees').select('id, name, role, department, active, username, created_at').order('role').order('name')
     if (data) setEmployees(data)
     setLoading(false)
   }
@@ -376,7 +376,7 @@ function EmployeeFormModal({ employee, onClose, onSaved, onToggleActive }: {
   const [name, setName] = useState(employee?.name ?? '')
   const [department, setDepartment] = useState(employee?.department ?? '')
   const [role, setRole] = useState<'admin' | 'user'>(employee?.role ?? 'user')
-  const [password, setPassword] = useState(employee?.password ?? '')
+  const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [error, setError] = useState('')
@@ -391,8 +391,12 @@ function EmployeeFormModal({ employee, onClose, onSaved, onToggleActive }: {
       department: department || null,
       role,
     }
-    if (!employee) payload.active = true
-    payload.password = password || null
+    if (!employee) {
+      payload.active = true
+      payload.password = password || null
+    } else if (password.trim()) {
+      payload.password = password.trim()
+    }
 
     const { error: err } = employee
       ? await supabase.from('employees').update(payload).eq('id', employee.id)
@@ -441,9 +445,10 @@ function EmployeeFormModal({ employee, onClose, onSaved, onToggleActive }: {
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">密碼{employee ? '（不填則保持不變）' : ' *'}</label>
-            <input type="text" value={password} onChange={e => setPassword(e.target.value)}
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
               required={!employee}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" />
+              autoComplete="new-password"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex items-center justify-between pt-2">
