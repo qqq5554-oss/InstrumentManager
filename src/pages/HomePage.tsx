@@ -312,7 +312,7 @@ export default function HomePage() {
 
       {/* Floating bulk action bar */}
       {multiMode && checkedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-gray-900 text-white rounded-full px-6 py-3 flex items-center gap-4 shadow-xl">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-gray-900 text-white rounded-full px-6 py-3 flex items-center gap-4 shadow-xl whitespace-nowrap">
           <span className="text-sm">已選 {checkedIds.size} 件</span>
           <button
             onClick={() => setBulkOpen(true)}
