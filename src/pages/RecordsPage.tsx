@@ -265,6 +265,7 @@ export default function RecordsPage() {
           onExtended={() => { fetchLoans(); setSelectedLoan(null); setOpenExtend(false) }}
           returning={returning}
           initialShowExtend={openExtend}
+          hideReturn={openExtend}
         />
       )}
       {returnTermsLoan && (
@@ -277,7 +278,7 @@ export default function RecordsPage() {
   )
 }
 
-function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onExtended, returning, initialShowExtend }: {
+function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onExtended, returning, initialShowExtend, hideReturn }: {
   loan: LoanWithInstrument
   isAdmin: boolean
   currentUserId: string
@@ -286,6 +287,7 @@ function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onEx
   onExtended: () => void
   returning: string | null
   initialShowExtend?: boolean
+  hideReturn?: boolean
 }) {
   const todayVal = today()
   const days = overdayDays(loan)
@@ -417,7 +419,7 @@ function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onEx
           )}
         </div>
 
-        {loan.status !== 'returned' && canAct && (
+        {loan.status !== 'returned' && canAct && !hideReturn && (
           <div className="px-5 pb-5">
             <button onClick={() => onReturn(loan)} disabled={returning === loan.id}
               className="w-full px-4 py-2 text-sm bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-md font-medium transition-colors">
