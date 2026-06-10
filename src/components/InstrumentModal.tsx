@@ -30,6 +30,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
   const [extendDate, setExtendDate] = useState('')
   const [extendReason, setExtendReason] = useState('')
   const [extendSubmitting, setExtendSubmitting] = useState(false)
+  const [extendError, setExtendError] = useState('')
 
   const activeLoan = loans.find(l => l.status === 'borrowed')
 
@@ -109,6 +110,23 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
 
   const handleExtend = async (loan: Loan) => {
     if (!extendDate || !extendReason.trim()) return
+    setExtendError('')
+
+    const { data: conflicts } = await supabase
+      .from('loans')
+      .select('id, borrower_name, borrow_date, expected_return_date')
+      .eq('instrument_id', instrument.id)
+      .in('status', ['borrowed', 'reserved'])
+      .neq('id', loan.id)
+      .lte('borrow_date', extendDate)
+      .gte('expected_return_date', loan.borrow_date)
+
+    if (conflicts && conflicts.length > 0) {
+      const c = conflicts[0] as { borrower_name: string; borrow_date: string; expected_return_date: string }
+      setExtendError(`日期衝突：${c.borrower_name} 已預約 ${c.borrow_date} ~ ${c.expected_return_date}`)
+      return
+    }
+
     setExtendSubmitting(true)
     const note = `[延長至 ${extendDate}，原因：${extendReason.trim()}]`
     const newPurpose = loan.purpose ? `${loan.purpose}\n${note}` : note
@@ -116,6 +134,11 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
       expected_return_date: extendDate,
       purpose: newPurpose,
     }).eq('id', loan.id)
+
+    if (instrument.status === 'overdue') {
+      await supabase.from('instruments').update({ status: 'borrowed' }).eq('id', instrument.id)
+    }
+
     await fetchLoans()
     await onRefresh()
     setExtendingLoanId(null)
@@ -208,6 +231,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
                                 setExtendingLoanId(extendingLoanId === l.id ? null : l.id)
                                 setExtendDate('')
                                 setExtendReason('')
+                                setExtendError('')
                               }}
                               className="px-2 py-0.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-medium transition-colors"
                             >
@@ -247,9 +271,10 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
                               className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                             />
                           </div>
+                          {extendError && <p className="text-xs text-red-500">{extendError}</p>}
                           <div className="flex gap-2">
                             <button
-                              onClick={() => setExtendingLoanId(null)}
+                              onClick={() => { setExtendingLoanId(null); setExtendError('') }}
                               className="flex-1 px-3 py-1.5 text-xs text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
                             >
                               取消
