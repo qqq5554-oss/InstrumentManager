@@ -37,6 +37,7 @@ const EMPTY: FormData = {
   status: 'available',
   photo_url: null,
   report_url: null,
+  is_favorite: false,
 }
 
 const toForm = (inst: Instrument): FormData => ({
@@ -61,6 +62,7 @@ const toForm = (inst: Instrument): FormData => ({
   status: inst.status,
   photo_url: inst.photo_url,
   report_url: inst.report_url,
+  is_favorite: inst.is_favorite,
 })
 
 const clean = (v: string | null | undefined) => v?.trim() || null

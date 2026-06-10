@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import type { Instrument } from '../types'
 import StatusBadge from './StatusBadge'
+import { BorrowTermsModal } from './TermsModal'
 
 interface Props {
   instruments: Instrument[]
@@ -21,6 +22,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState('')
+  const [showTerms, setShowTerms] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -67,6 +69,15 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
       return
     }
 
+    setSubmitting(false)
+    setShowTerms(true)
+  }
+
+  const confirmBorrow = async () => {
+    if (!currentUser) return
+    setShowTerms(false)
+    setSubmitting(true)
+
     const loanStatus = borrowDate > today() ? 'reserved' : 'borrowed'
     const instrStatus = loanStatus === 'reserved' ? 'reserved' : 'borrowed'
 
@@ -93,6 +104,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
   }
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
       onClick={e => e.target === e.currentTarget && !submitting && onClose()}
@@ -174,5 +186,9 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
         </div>
       </div>
     </div>
+    {showTerms && (
+      <BorrowTermsModal onConfirm={confirmBorrow} onCancel={() => setShowTerms(false)} />
+    )}
+    </>
   )
 }

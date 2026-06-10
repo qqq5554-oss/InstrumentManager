@@ -21,6 +21,7 @@ export interface Instrument {
   photo_url: string | null
   report_url: string | null
   subcategory: string | null
+  is_favorite: boolean
   created_at: string
 }
 

@@ -30,6 +30,7 @@ const todayStr = () => format(new Date(), 'yyyy-MM-dd')
 
 export default function HomePage() {
   const { currentUser } = useAuth()
+  const isAdmin = currentUser?.role === 'admin'
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [activeLoans, setActiveLoans] = useState<ActiveLoan[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,6 +45,7 @@ export default function HomePage() {
   const [multiMode, setMultiMode] = useState(false)
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
   const [bulkOpen, setBulkOpen] = useState(false)
+  const [favoriteFilter, setFavoriteFilter] = useState(false)
 
   const fetchAll = async () => {
     const [{ data: instData }, { data: loanData }, { data: catData }] = await Promise.all([
@@ -82,11 +84,12 @@ export default function HomePage() {
     const matchStatus = !statusFilter || i.status === statusFilter
     const matchCat = categoryFilter === '全部' || i.category === categoryFilter
     const matchSubcat = !subcategoryFilter || i.subcategory === subcategoryFilter
-    return matchSearch && matchStatus && matchCat && matchSubcat
+    const matchFavorite = !favoriteFilter || i.is_favorite
+    return matchSearch && matchStatus && matchCat && matchSubcat && matchFavorite
   })
 
   const stats = {
-    total: instruments.length,
+    favorites: instruments.filter(i => i.is_favorite).length,
     available: instruments.filter(i => i.status === 'available').length,
     borrowed: instruments.filter(i => i.status === 'borrowed').length,
     reserved: instruments.filter(i => i.status === 'reserved').length,
@@ -105,6 +108,12 @@ export default function HomePage() {
     setCheckedIds(new Set())
   }
 
+  const toggleFavorite = async (inst: Instrument, e: React.MouseEvent) => {
+    e.stopPropagation()
+    await supabase.from('instruments').update({ is_favorite: !inst.is_favorite }).eq('id', inst.id)
+    fetchAll()
+  }
+
   const checkedInstruments = instruments.filter(i => checkedIds.has(i.id))
 
   const handleStatClick = (value: string) => {
@@ -112,7 +121,7 @@ export default function HomePage() {
   }
 
   const statCards = [
-    { label: '總件數', value: stats.total, color: 'text-gray-800', filterVal: '', activeColor: 'border-gray-400 bg-gray-50' },
+    { label: '⭐ 常用儀器', value: stats.favorites, color: 'text-yellow-500', filterVal: 'favorite', activeColor: 'border-yellow-400 bg-yellow-50' },
     { label: '可借用', value: stats.available, color: 'text-green-600', filterVal: 'available', activeColor: 'border-green-400 bg-green-50' },
     { label: '借出中', value: stats.borrowed, color: 'text-red-500', filterVal: 'borrowed', activeColor: 'border-red-400 bg-red-50' },
     { label: '已預約', value: stats.reserved, color: 'text-amber-600', filterVal: 'reserved', activeColor: 'border-amber-400 bg-amber-50' },
@@ -125,22 +134,21 @@ export default function HomePage() {
       {/* Stats - clickable */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {statCards.map(s => {
-          const isActive = statusFilter === s.filterVal && s.filterVal !== ''
+          const isActive = s.filterVal === 'favorite' ? favoriteFilter : statusFilter === s.filterVal
+          const handleClick = s.filterVal === 'favorite'
+            ? () => setFavoriteFilter(prev => !prev)
+            : () => handleStatClick(s.filterVal)
           return (
             <button
               key={s.label}
-              onClick={() => handleStatClick(s.filterVal)}
-              className={`rounded-lg border p-4 text-center shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                isActive
-                  ? `${s.activeColor} ring-2 ring-offset-1`
-                  : 'bg-white border-gray-200 hover:shadow-md hover:border-gray-300'
-              } ${s.filterVal ? 'cursor-pointer' : 'cursor-default'}`}
+              onClick={handleClick}
+              className={`rounded-lg border p-4 text-center shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer ${
+                isActive ? `${s.activeColor} ring-2 ring-offset-1` : 'bg-white border-gray-200 hover:shadow-md hover:border-gray-300'
+              }`}
             >
               <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
               <p className="text-sm text-gray-500 mt-1">{s.label}</p>
-              {s.filterVal && (
-                <p className="text-xs text-gray-400 mt-0.5">{isActive ? '點擊取消篩選' : '點擊篩選'}</p>
-              )}
+              <p className="text-xs text-gray-400 mt-0.5">{isActive ? '點擊取消篩選' : '點擊篩選'}</p>
             </button>
           )
         })}
@@ -286,6 +294,7 @@ export default function HomePage() {
                 onReturn={handleCardReturn}
                 today={today}
                 categories={categories}
+                onToggleFavorite={isAdmin ? (e) => toggleFavorite(inst, e) : undefined}
               />
             )
           })}
@@ -329,7 +338,7 @@ export default function HomePage() {
 }
 
 function InstrumentCard({
-  instrument, multiMode, checked, onCheck, onClick, activeLoan, currentUserId, onReturn, today, categories,
+  instrument, multiMode, checked, onCheck, onClick, activeLoan, currentUserId, onReturn, today, categories, onToggleFavorite,
 }: {
   instrument: Instrument
   multiMode: boolean
@@ -341,6 +350,7 @@ function InstrumentCard({
   onReturn?: (loan: ActiveLoan) => Promise<void>
   today: string
   categories: InstrumentCategory[]
+  onToggleFavorite?: (e: React.MouseEvent) => void
 }) {
   const [returning, setReturning] = useState(false)
 
@@ -366,7 +376,20 @@ function InstrumentCard({
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-xs text-gray-400 font-mono">{instrument.instrument_no}</span>
+        <div className="flex items-center gap-1 min-w-0">
+          {onToggleFavorite ? (
+            <button
+              onClick={onToggleFavorite}
+              className="shrink-0 text-base leading-none focus:outline-none"
+              title={instrument.is_favorite ? '取消常用' : '加入常用'}
+            >
+              {instrument.is_favorite ? '⭐' : '☆'}
+            </button>
+          ) : (
+            instrument.is_favorite && <span className="shrink-0 text-base leading-none">⭐</span>
+          )}
+          <span className="text-xs text-gray-400 font-mono">{instrument.instrument_no}</span>
+        </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {isOverdue && (
             <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">逾期</span>

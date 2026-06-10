@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import type { Loan } from '../types'
+import { ReturnTermsModal } from '../components/TermsModal'
 
 interface LoanWithInstrument extends Omit<Loan, 'instruments'> {
   instruments: { name: string; instrument_no: string } | null
@@ -26,6 +27,8 @@ export default function RecordsPage() {
   const [loading, setLoading] = useState(true)
   const [returning, setReturning] = useState<string | null>(null)
   const [returningProject, setReturningProject] = useState<string | null>(null)
+  const [returnTermsLoan, setReturnTermsLoan] = useState<LoanWithInstrument | null>(null)
+  const [returnTermsProject, setReturnTermsProject] = useState<{ name: string; loans: LoanWithInstrument[] } | null>(null)
   const [filterBorrower, setFilterBorrower] = useState('')
   const [filterProject, setFilterProject] = useState('')
   const [filterFrom, setFilterFrom] = useState('')
@@ -44,7 +47,14 @@ export default function RecordsPage() {
 
   useEffect(() => { fetchLoans() }, [])
 
-  const handleReturn = async (loan: LoanWithInstrument) => {
+  const handleReturn = (loan: LoanWithInstrument) => {
+    setReturnTermsLoan(loan)
+  }
+
+  const confirmReturn = async () => {
+    if (!returnTermsLoan) return
+    const loan = returnTermsLoan
+    setReturnTermsLoan(null)
     setReturning(loan.id)
     await supabase.from('loans').update({ actual_return_date: today(), status: 'returned' }).eq('id', loan.id)
     const { data: remaining } = await supabase
@@ -61,7 +71,14 @@ export default function RecordsPage() {
     setOpenExtend(false)
   }
 
-  const handleReturnProject = async (projectName: string, activeLoans: LoanWithInstrument[]) => {
+  const handleReturnProject = (projectName: string, activeLoans: LoanWithInstrument[]) => {
+    setReturnTermsProject({ name: projectName, loans: activeLoans })
+  }
+
+  const confirmReturnProject = async () => {
+    if (!returnTermsProject) return
+    const { name: projectName, loans: activeLoans } = returnTermsProject
+    setReturnTermsProject(null)
     setReturningProject(projectName)
     const returnDate = today()
     await Promise.all(activeLoans.map(async loan => {
@@ -249,6 +266,12 @@ export default function RecordsPage() {
           returning={returning}
           initialShowExtend={openExtend}
         />
+      )}
+      {returnTermsLoan && (
+        <ReturnTermsModal onConfirm={confirmReturn} onCancel={() => setReturnTermsLoan(null)} />
+      )}
+      {returnTermsProject && (
+        <ReturnTermsModal onConfirm={confirmReturnProject} onCancel={() => setReturnTermsProject(null)} />
       )}
     </div>
   )
