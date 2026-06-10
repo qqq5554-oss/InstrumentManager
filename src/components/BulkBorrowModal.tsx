@@ -18,7 +18,6 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
   const [borrowDate, setBorrowDate] = useState(today())
   const [expectedReturn, setExpectedReturn] = useState('')
   const [projectName, setProjectName] = useState('')
-  const [purpose, setPurpose] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState('')
@@ -35,7 +34,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
     }
 
     if (!projectName.trim()) {
-      setGlobalError('請填寫專案名稱')
+      setGlobalError('請填寫專案/用途說明')
       return
     }
 
@@ -78,7 +77,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
       borrow_date: borrowDate,
       expected_return_date: expectedReturn,
       project_name: projectName.trim() || null,
-      purpose: purpose.trim() || null,
+      purpose: null,
       status: loanStatus,
     }))
 
@@ -127,7 +126,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
               借用人：<span className="font-medium">{currentUser?.name}</span>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">專案名稱 *</label>
+              <label className="block text-xs text-gray-500 mb-1">專案/用途說明 *</label>
               <input
                 type="text"
                 value={projectName}
@@ -159,16 +158,6 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
                   required
                 />
               </div>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">備註說明（選填）</label>
-              <textarea
-                value={purpose}
-                onChange={e => setPurpose(e.target.value)}
-                rows={2}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                placeholder="選填"
-              />
             </div>
             {globalError && <p className="text-sm text-red-500">{globalError}</p>}
             <div className="flex gap-3">
