@@ -31,6 +31,7 @@ export default function RecordsPage() {
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
   const [selectedLoan, setSelectedLoan] = useState<LoanWithInstrument | null>(null)
+  const [openExtend, setOpenExtend] = useState(false)
 
   const fetchLoans = async () => {
     const { data } = await supabase
@@ -57,6 +58,7 @@ export default function RecordsPage() {
     await fetchLoans()
     setReturning(null)
     setSelectedLoan(null)
+    setOpenExtend(false)
   }
 
   const handleReturnProject = async (projectName: string, activeLoans: LoanWithInstrument[]) => {
@@ -212,12 +214,19 @@ export default function RecordsPage() {
                       </td>
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         {loan.status !== 'returned' && (isAdmin || loan.employee_id === currentUser?.id) && (
-                          <button
-                            onClick={() => handleReturn(loan)}
-                            disabled={returning === loan.id || (returningProject !== null && returningProject === loan.project_name)}
-                            className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-md font-medium transition-colors">
-                            {returning === loan.id ? '處理中...' : '歸還'}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => { setSelectedLoan(loan); setOpenExtend(true) }}
+                              className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap">
+                              申請延長
+                            </button>
+                            <button
+                              onClick={() => handleReturn(loan)}
+                              disabled={returning === loan.id || (returningProject !== null && returningProject === loan.project_name)}
+                              className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-md font-medium transition-colors">
+                              {returning === loan.id ? '處理中...' : '歸還'}
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -234,17 +243,18 @@ export default function RecordsPage() {
           loan={selectedLoan}
           isAdmin={isAdmin}
           currentUserId={currentUser?.id ?? ''}
-          onClose={() => setSelectedLoan(null)}
+          onClose={() => { setSelectedLoan(null); setOpenExtend(false) }}
           onReturn={handleReturn}
-          onExtended={() => { fetchLoans(); setSelectedLoan(null) }}
+          onExtended={() => { fetchLoans(); setSelectedLoan(null); setOpenExtend(false) }}
           returning={returning}
+          initialShowExtend={openExtend}
         />
       )}
     </div>
   )
 }
 
-function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onExtended, returning }: {
+function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onExtended, returning, initialShowExtend }: {
   loan: LoanWithInstrument
   isAdmin: boolean
   currentUserId: string
@@ -252,12 +262,13 @@ function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onEx
   onReturn: (loan: LoanWithInstrument) => void
   onExtended: () => void
   returning: string | null
+  initialShowExtend?: boolean
 }) {
   const todayVal = today()
   const days = overdayDays(loan)
   const canAct = isAdmin || loan.employee_id === currentUserId
 
-  const [showExtend, setShowExtend] = useState(false)
+  const [showExtend, setShowExtend] = useState(initialShowExtend ?? false)
   const [extendDate, setExtendDate] = useState('')
   const [extendReason, setExtendReason] = useState('')
   const [extendSubmitting, setExtendSubmitting] = useState(false)
