@@ -23,7 +23,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUser])
 
-  const login = (employee: Employee) => setCurrentUser(employee)
+  const login = (employee: Employee) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _pw, ...safe } = employee as Employee & { password?: unknown }
+    setCurrentUser(safe as Employee)
+  }
   const logout = () => setCurrentUser(null)
 
   return (

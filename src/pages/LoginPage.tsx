@@ -24,21 +24,16 @@ export default function LoginPage() {
     setLoading(true)
 
     const { data, error: dbErr } = await supabase
-      .from('employees')
-      .select('*')
-      .eq('name', selectedName)
-      .eq('password', password)
-      .eq('active', true)
-      .single()
+      .rpc('verify_login', { p_name: selectedName, p_pass: password })
 
     setLoading(false)
 
-    if (dbErr || !data) {
-      setError('密碼錯誤')
+    if (dbErr || !data || (data as unknown[]).length === 0) {
+      setError('帳號或密碼不正確')
       return
     }
 
-    login(data)
+    login((data as unknown[])[0] as import('../types').Employee)
     navigate('/')
   }
 
