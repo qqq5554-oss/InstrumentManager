@@ -20,6 +20,24 @@ export async function notifyLineBorrow(params: {
   }
 }
 
+export async function notifyLineExtend(params: {
+  borrowerName: string
+  instrumentName: string
+  instrumentNo: string
+  newReturnDate: string
+  reason: string
+}) {
+  try {
+    await fetch(NOTIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...params, type: 'extend' }),
+    })
+  } catch {
+    // notification failure should not block the main flow
+  }
+}
+
 export async function notifyLineBulkBorrow(params: {
   status: 'borrowed' | 'reserved'
   borrowerName: string
