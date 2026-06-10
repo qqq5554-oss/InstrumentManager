@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Instrument, Employee } from '../types'
+import type { Instrument, Employee, InstrumentCategory } from '../types'
 import StatusBadge from '../components/StatusBadge'
 import InstrumentFormModal from '../components/InstrumentFormModal'
 
@@ -36,6 +36,8 @@ function InstrumentsTab() {
   const [editing, setEditing] = useState<Instrument | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Instrument | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [categories, setCategories] = useState<InstrumentCategory[]>([])
+  const [catManageOpen, setCatManageOpen] = useState(false)
 
   const fetchInstruments = async () => {
     const { data } = await supabase.from('instruments').select('*').order('instrument_no')
@@ -43,7 +45,12 @@ function InstrumentsTab() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchInstruments() }, [])
+  const fetchCategories = async () => {
+    const { data } = await supabase.from('instrument_categories').select('*').order('created_at')
+    if (data) setCategories(data)
+  }
+
+  useEffect(() => { fetchInstruments(); fetchCategories() }, [])
 
   const handleDelete = async () => {
     if (!confirmDelete) return
@@ -56,7 +63,11 @@ function InstrumentsTab() {
 
   return (
     <>
-      <div className="flex justify-end mb-3">
+      <div className="flex justify-end gap-2 mb-3">
+        <button onClick={() => setCatManageOpen(true)}
+          className="border border-gray-300 hover:bg-gray-50 text-gray-600 px-4 py-2 rounded-md text-sm font-medium transition-colors">
+          管理分類
+        </button>
         <button onClick={() => { setEditing(null); setFormOpen(true) }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
           + 新增儀器
@@ -122,7 +133,8 @@ function InstrumentsTab() {
           </div>
         </>
       )}
-      {formOpen && <InstrumentFormModal instrument={editing} onClose={() => { setFormOpen(false); setEditing(null) }} onSaved={fetchInstruments} onDelete={editing ? () => { setFormOpen(false); setConfirmDelete(editing); setEditing(null) } : undefined} />}
+      {formOpen && <InstrumentFormModal instrument={editing} categories={categories} onClose={() => { setFormOpen(false); setEditing(null) }} onSaved={fetchInstruments} onDelete={editing ? () => { setFormOpen(false); setConfirmDelete(editing); setEditing(null) } : undefined} />}
+      {catManageOpen && <CategoryManageModal categories={categories} onClose={() => setCatManageOpen(false)} onChanged={fetchCategories} />}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={e => e.target === e.currentTarget && !deleting && setConfirmDelete(null)}>
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
@@ -138,6 +150,108 @@ function InstrumentsTab() {
         </div>
       )}
     </>
+  )
+}
+
+const COLOR_OPTIONS = [
+  '#6B7280','#3B82F6','#10B981','#EF4444','#F59E0B',
+  '#8B5CF6','#EC4899','#14B8A6','#F97316','#6366F1',
+]
+
+function CategoryManageModal({ categories, onClose, onChanged }: {
+  categories: InstrumentCategory[]
+  onClose: () => void
+  onChanged: () => void
+}) {
+  const [name, setName] = useState('')
+  const [color, setColor] = useState('#3B82F6')
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  const handleAdd = async () => {
+    if (!name.trim()) { setError('請填寫分類名稱'); return }
+    setSaving(true)
+    setError('')
+    const { error: err } = await supabase.from('instrument_categories').insert({ name: name.trim(), color })
+    if (err) { setError(err.message.includes('unique') ? '此分類名稱已存在' : err.message); setSaving(false); return }
+    setName('')
+    onChanged()
+    setSaving(false)
+  }
+
+  const handleDelete = async (id: string) => {
+    setDeleting(id)
+    await supabase.from('instrument_categories').delete().eq('id', id)
+    onChanged()
+    setDeleting(null)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-900">管理分類</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          {/* 現有分類 */}
+          <div className="space-y-2 max-h-52 overflow-y-auto">
+            {categories.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">尚無分類</p>
+            ) : categories.map(cat => (
+              <div key={cat.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                  <span className="text-sm text-gray-800">{cat.name}</span>
+                </div>
+                <button
+                  onClick={() => handleDelete(cat.id)}
+                  disabled={deleting === cat.id}
+                  className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
+                >
+                  {deleting === cat.id ? '刪除中...' : '刪除'}
+                </button>
+              </div>
+            ))}
+          </div>
+          {/* 新增分類 */}
+          <div className="border-t border-gray-100 pt-4 space-y-3">
+            <p className="text-xs text-gray-500 font-medium">新增分類</p>
+            <input
+              type="text"
+              placeholder="分類名稱"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div>
+              <p className="text-xs text-gray-400 mb-2">選擇顏色</p>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_OPTIONS.map(c => (
+                  <button key={c} type="button" onClick={() => setColor(c)}
+                    className={`w-7 h-7 rounded-full transition-all ${color === c ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : 'hover:scale-105'}`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+            {error && <p className="text-xs text-red-500">{error}</p>}
+            <button
+              onClick={handleAdd}
+              disabled={saving}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md py-2 text-sm font-medium transition-colors"
+            >
+              {saving ? '新增中...' : '新增分類'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 

@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Instrument } from '../types'
+import type { Instrument, InstrumentCategory } from '../types'
 
 interface Props {
   instrument: Instrument | null
   onClose: () => void
   onSaved: () => void
   onDelete?: () => void
+  categories: InstrumentCategory[]
 }
 
 type FormData = Omit<Instrument, 'id' | 'created_at'>
@@ -78,10 +79,11 @@ const compressImage = (file: File): Promise<Blob> =>
     img.src = url
   })
 
-export default function InstrumentFormModal({ instrument, onClose, onSaved, onDelete }: Props) {
+export default function InstrumentFormModal({ instrument, onClose, onSaved, onDelete, categories }: Props) {
   const [form, setForm] = useState<FormData>(instrument ? toForm(instrument) : EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [catOpen, setCatOpen] = useState(false)
 
   // Photo state
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -91,24 +93,8 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
   const [reportFile, setReportFile] = useState<File | null>(null)
   const [reportFileName, setReportFileName] = useState<string | null>(null)
 
-  // Subcategory autocomplete
-  const [subcategoryOptions, setSubcategoryOptions] = useState<string[]>([])
-
   const photoInputRef = useRef<HTMLInputElement>(null)
   const reportInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    supabase
-      .from('instruments')
-      .select('subcategory')
-      .not('subcategory', 'is', null)
-      .then(({ data }) => {
-        if (data) {
-          const unique = Array.from(new Set(data.map(r => r.subcategory as string).filter(Boolean)))
-          setSubcategoryOptions(unique)
-        }
-      })
-  }, [])
 
   const set = (field: keyof FormData, value: string) => setForm(f => ({ ...f, [field]: value }))
 
@@ -245,7 +231,7 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-      onClick={e => e.target === e.currentTarget && !saving && onClose()}
+      onClick={e => { if (e.target === e.currentTarget && !saving) { onClose() } else { setCatOpen(false) } }}
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
@@ -281,22 +267,45 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
 
           <Field label="儀器名稱" field="name" required />
 
-          {/* Subcategory with datalist */}
+          {/* Subcategory custom dropdown */}
           <div>
             <label className="block text-xs text-gray-500 mb-1">儀器分類</label>
-            <input
-              type="text"
-              list="subcategory-list"
-              value={form.subcategory ?? ''}
-              onChange={e => setForm(f => ({ ...f, subcategory: e.target.value || null }))}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="輸入或選擇分類"
-            />
-            <datalist id="subcategory-list">
-              {subcategoryOptions.map(opt => (
-                <option key={opt} value={opt} />
-              ))}
-            </datalist>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setCatOpen(v => !v)}
+                className="w-full flex items-center justify-between rounded-md border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {(() => {
+                  const cat = categories.find(c => c.name === form.subcategory)
+                  return cat ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                      {cat.name}
+                    </span>
+                  ) : <span className="text-gray-400">選擇分類...</span>
+                })()}
+                <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {catOpen && (
+                <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                  <button type="button"
+                    onClick={() => { setForm(f => ({ ...f, subcategory: null })); setCatOpen(false) }}
+                    className="w-full px-3 py-2 text-sm text-left text-gray-400 hover:bg-gray-50">
+                    無分類
+                  </button>
+                  {categories.map(cat => (
+                    <button key={cat.id} type="button"
+                      onClick={() => { setForm(f => ({ ...f, subcategory: cat.name })); setCatOpen(false) }}
+                      className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 hover:bg-gray-50 ${form.subcategory === cat.name ? 'bg-blue-50' : ''}`}
+                    >
+                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Optional fields */}
