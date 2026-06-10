@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import type { Instrument, Loan } from '../types'
 import StatusBadge from './StatusBadge'
+import { BorrowTermsModal, ReturnTermsModal } from './TermsModal'
 
 interface Props {
   instrument: Instrument
@@ -24,6 +25,10 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
   const [borrowDate, setBorrowDate] = useState(today())
   const [expectedReturn, setExpectedReturn] = useState('')
   const [purpose, setPurpose] = useState('')
+
+  const [showBorrowTerms, setShowBorrowTerms] = useState(false)
+  const [showReturnTerms, setShowReturnTerms] = useState(false)
+  const [pendingReturnLoan, setPendingReturnLoan] = useState<Loan | null>(null)
 
   const [returning, setReturning] = useState<string | null>(null)
   const [extendingLoanId, setExtendingLoanId] = useState<string | null>(null)
@@ -66,6 +71,12 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
       return
     }
 
+    setShowBorrowTerms(true)
+  }
+
+  const confirmBorrow = async () => {
+    if (!currentUser) return
+    setShowBorrowTerms(false)
     setSubmitting(true)
     const loanStatus = borrowDate > today() ? 'reserved' : 'borrowed'
 
@@ -93,7 +104,16 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     setSubmitting(false)
   }
 
-  const handleReturn = async (loan: Loan) => {
+  const handleReturn = (loan: Loan) => {
+    setPendingReturnLoan(loan)
+    setShowReturnTerms(true)
+  }
+
+  const confirmReturn = async () => {
+    if (!pendingReturnLoan) return
+    const loan = pendingReturnLoan
+    setShowReturnTerms(false)
+    setPendingReturnLoan(null)
     setReturning(loan.id)
     await supabase.from('loans').update({ actual_return_date: today(), status: 'returned' }).eq('id', loan.id)
     const { data: remaining } = await supabase
@@ -152,6 +172,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
   const todayVal = today()
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
       onClick={e => e.target === e.currentTarget && onClose()}
@@ -376,5 +397,12 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
         </div>
       </div>
     </div>
+    {showBorrowTerms && (
+      <BorrowTermsModal onConfirm={confirmBorrow} onCancel={() => setShowBorrowTerms(false)} />
+    )}
+    {showReturnTerms && (
+      <ReturnTermsModal onConfirm={confirmReturn} onCancel={() => { setShowReturnTerms(false); setPendingReturnLoan(null) }} />
+    )}
+    </>
   )
 }
