@@ -14,6 +14,11 @@ type RenderItem =
 
 const today = () => format(new Date(), 'yyyy-MM-dd')
 
+const overdayDays = (loan: LoanWithInstrument) => {
+  if (loan.status !== 'borrowed' || loan.expected_return_date >= today()) return 0
+  return Math.round((new Date(today()).getTime() - new Date(loan.expected_return_date).getTime()) / 86400000)
+}
+
 export default function RecordsPage() {
   const { currentUser } = useAuth()
   const isAdmin = currentUser?.role === 'admin'
@@ -25,6 +30,7 @@ export default function RecordsPage() {
   const [filterProject, setFilterProject] = useState('')
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
+  const [selectedLoan, setSelectedLoan] = useState<LoanWithInstrument | null>(null)
 
   const fetchLoans = async () => {
     const { data } = await supabase
@@ -50,6 +56,7 @@ export default function RecordsPage() {
     }
     await fetchLoans()
     setReturning(null)
+    setSelectedLoan(null)
   }
 
   const handleReturnProject = async (projectName: string, activeLoans: LoanWithInstrument[]) => {
@@ -90,7 +97,6 @@ export default function RecordsPage() {
         byProject.set(loan.project_name, arr)
       }
     }
-
     const items: RenderItem[] = []
     const seen = new Set<string>()
     for (const loan of filtered) {
@@ -114,20 +120,12 @@ export default function RecordsPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-5">借用紀錄</h1>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-5 flex-wrap">
-        <input
-          type="text"
-          placeholder="依借用人搜尋..."
-          value={filterBorrower}
+        <input type="text" placeholder="依借用人搜尋..." value={filterBorrower}
           onChange={e => setFilterBorrower(e.target.value)}
-          className="flex-1 min-w-32 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <input
-          type="text"
-          placeholder="依專案名稱搜尋..."
-          value={filterProject}
+          className="flex-1 min-w-32 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <input type="text" placeholder="依專案名稱搜尋..." value={filterProject}
           onChange={e => setFilterProject(e.target.value)}
-          className="flex-1 min-w-32 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+          className="flex-1 min-w-32 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         <div className="flex items-center gap-2">
           <label className="text-sm text-gray-500 whitespace-nowrap">借出日</label>
           <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)}
@@ -169,11 +167,8 @@ export default function RecordsPage() {
                               </span>
                             </div>
                             {item.activeLoans.length > 0 && isAdmin && (
-                              <button
-                                onClick={() => handleReturnProject(item.projectName, item.activeLoans)}
-                                disabled={isReturning}
-                                className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded-md font-medium transition-colors"
-                              >
+                              <button onClick={() => handleReturnProject(item.projectName, item.activeLoans)} disabled={isReturning}
+                                className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded-md font-medium transition-colors">
                                 {isReturning ? '處理中...' : `全部歸還（${item.activeLoans.length} 件）`}
                               </button>
                             )}
@@ -184,8 +179,11 @@ export default function RecordsPage() {
                   }
 
                   const { loan } = item
+                  const days = overdayDays(loan)
                   return (
-                    <tr key={loan.id} className={loan.project_name ? 'bg-blue-50/20' : loan.status !== 'returned' ? 'bg-red-50/30' : ''}>
+                    <tr key={loan.id}
+                      onClick={() => setSelectedLoan(loan)}
+                      className={`cursor-pointer hover:bg-gray-50 transition-colors ${loan.project_name ? 'bg-blue-50/20' : ''}`}>
                       <td className="px-4 py-3 font-medium text-gray-900">{loan.instruments?.name || '—'}</td>
                       <td className="px-4 py-3 text-gray-500 font-mono text-xs">{loan.instruments?.instrument_no || '—'}</td>
                       <td className="px-4 py-3 text-gray-700">{loan.borrower_name}</td>
@@ -197,21 +195,27 @@ export default function RecordsPage() {
                         {!loan.project_name && !loan.purpose && '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          loan.status === 'returned' ? 'bg-gray-100 text-gray-500' :
-                          loan.status === 'borrowed' ? 'bg-red-100 text-red-600' :
-                          'bg-amber-100 text-amber-700'
-                        }`}>
-                          {loan.status === 'returned' ? '已歸還' : loan.status === 'borrowed' ? '借出中' : '已預約'}
-                        </span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            loan.status === 'returned' ? 'bg-gray-100 text-gray-500' :
+                            loan.status === 'borrowed' ? 'bg-red-100 text-red-600' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>
+                            {loan.status === 'returned' ? '已歸還' : loan.status === 'borrowed' ? '借出中' : '已預約'}
+                          </span>
+                          {days > 0 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                              逾期 {days} 天
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         {loan.status !== 'returned' && (isAdmin || loan.employee_id === currentUser?.id) && (
                           <button
                             onClick={() => handleReturn(loan)}
                             disabled={returning === loan.id || (returningProject !== null && returningProject === loan.project_name)}
-                            className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-md font-medium transition-colors"
-                          >
+                            className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-md font-medium transition-colors">
                             {returning === loan.id ? '處理中...' : '歸還'}
                           </button>
                         )}
@@ -224,6 +228,170 @@ export default function RecordsPage() {
           </div>
         </div>
       )}
+
+      {selectedLoan && (
+        <LoanDetailModal
+          loan={selectedLoan}
+          isAdmin={isAdmin}
+          currentUserId={currentUser?.id ?? ''}
+          onClose={() => setSelectedLoan(null)}
+          onReturn={handleReturn}
+          onExtended={() => { fetchLoans(); setSelectedLoan(null) }}
+          returning={returning}
+        />
+      )}
+    </div>
+  )
+}
+
+function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onExtended, returning }: {
+  loan: LoanWithInstrument
+  isAdmin: boolean
+  currentUserId: string
+  onClose: () => void
+  onReturn: (loan: LoanWithInstrument) => void
+  onExtended: () => void
+  returning: string | null
+}) {
+  const todayVal = today()
+  const days = overdayDays(loan)
+  const canAct = isAdmin || loan.employee_id === currentUserId
+
+  const [showExtend, setShowExtend] = useState(false)
+  const [extendDate, setExtendDate] = useState('')
+  const [extendReason, setExtendReason] = useState('')
+  const [extendSubmitting, setExtendSubmitting] = useState(false)
+  const [extendError, setExtendError] = useState('')
+
+  const handleExtend = async () => {
+    if (!extendDate || !extendReason.trim()) return
+    setExtendError('')
+
+    const { data: conflicts } = await supabase
+      .from('loans')
+      .select('id, borrower_name, borrow_date, expected_return_date')
+      .eq('instrument_id', loan.instrument_id)
+      .in('status', ['borrowed', 'reserved'])
+      .neq('id', loan.id)
+      .lte('borrow_date', extendDate)
+      .gte('expected_return_date', loan.borrow_date)
+
+    if (conflicts && conflicts.length > 0) {
+      const c = conflicts[0] as { borrower_name: string; borrow_date: string; expected_return_date: string }
+      setExtendError(`日期衝突：${c.borrower_name} 已預約 ${c.borrow_date} ~ ${c.expected_return_date}`)
+      return
+    }
+
+    setExtendSubmitting(true)
+    const note = `[延長至 ${extendDate}，原因：${extendReason.trim()}]`
+    const newPurpose = loan.purpose ? `${loan.purpose}\n${note}` : note
+    await supabase.from('loans').update({ expected_return_date: extendDate, purpose: newPurpose }).eq('id', loan.id)
+
+    const { data: inst } = await supabase.from('instruments').select('status').eq('id', loan.instrument_id).single()
+    if (inst?.status === 'overdue') {
+      await supabase.from('instruments').update({ status: 'borrowed' }).eq('id', loan.instrument_id)
+    }
+
+    setExtendSubmitting(false)
+    onExtended()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+        <div className="flex items-start justify-between p-5 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">{loan.instruments?.name || '借用詳細'}</h2>
+            <p className="text-xs text-gray-400 font-mono mt-0.5">{loan.instruments?.instrument_no}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 shrink-0">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+              loan.status === 'returned' ? 'bg-gray-100 text-gray-500' :
+              loan.status === 'borrowed' ? 'bg-red-100 text-red-600' :
+              'bg-amber-100 text-amber-700'
+            }`}>
+              {loan.status === 'returned' ? '已歸還' : loan.status === 'borrowed' ? '借出中' : '已預約'}
+            </span>
+            {days > 0 && (
+              <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                逾期 {days} 天
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            {([
+              ['借用人', loan.borrower_name],
+              ['借出日', loan.borrow_date],
+              ['預計歸還', loan.expected_return_date],
+              ['實際歸還', loan.actual_return_date || '—'],
+            ] as [string, string][]).map(([label, value]) => (
+              <div key={label} className="bg-gray-50 rounded-md p-2.5">
+                <p className="text-xs text-gray-400 mb-0.5">{label}</p>
+                <p className="text-gray-700 font-medium">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {loan.purpose && (
+            <div className="bg-gray-50 rounded-md p-3">
+              <p className="text-xs text-gray-400 mb-1">用途 / 備註</p>
+              <p className="text-gray-700 whitespace-pre-line text-xs">{loan.purpose}</p>
+            </div>
+          )}
+
+          {loan.status !== 'returned' && canAct && (
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => { setShowExtend(!showExtend); setExtendError('') }}
+                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <span>申請延長</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${showExtend ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {showExtend && (
+                <div className="p-3 border-t border-gray-100 space-y-2 bg-gray-50/50">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">新的歸還日期 *</label>
+                    <input type="date" value={extendDate}
+                      min={loan.expected_return_date > todayVal ? loan.expected_return_date : todayVal}
+                      onChange={e => setExtendDate(e.target.value)}
+                      className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">延長原因 *</label>
+                    <textarea value={extendReason} onChange={e => setExtendReason(e.target.value)}
+                      rows={2} placeholder="請說明延長原因..."
+                      className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+                  </div>
+                  {extendError && <p className="text-xs text-red-500">{extendError}</p>}
+                  <button onClick={handleExtend}
+                    disabled={!extendDate || !extendReason.trim() || extendSubmitting}
+                    className="w-full px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded font-medium transition-colors">
+                    {extendSubmitting ? '送出中...' : '確認延長'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {loan.status !== 'returned' && canAct && (
+          <div className="px-5 pb-5">
+            <button onClick={() => onReturn(loan)} disabled={returning === loan.id}
+              className="w-full px-4 py-2 text-sm bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-md font-medium transition-colors">
+              {returning === loan.id ? '處理中...' : '歸還儀器'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
