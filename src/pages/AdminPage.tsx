@@ -278,7 +278,7 @@ function EmployeesTab() {
   const [editing, setEditing] = useState<Employee | null>(null)
 
   const fetchEmployees = async () => {
-    const { data } = await supabase.from('employees').select('id, name, role, department, active, username, created_at').order('role').order('name')
+    const { data } = await supabase.from('employees').select('id, name, role, department, active, username, password, created_at').order('role').order('name')
     if (data) setEmployees(data)
     setLoading(false)
   }
@@ -376,7 +376,7 @@ function EmployeeFormModal({ employee, onClose, onSaved, onToggleActive }: {
   const [name, setName] = useState(employee?.name ?? '')
   const [department, setDepartment] = useState(employee?.department ?? '')
   const [role, setRole] = useState<'admin' | 'user'>(employee?.role ?? 'user')
-  const [password, setPassword] = useState('')
+  const [password, setPassword] = useState(employee?.password ?? '')
   const [showPassword, setShowPassword] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toggling, setToggling] = useState(false)
