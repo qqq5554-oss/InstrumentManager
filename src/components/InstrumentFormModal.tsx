@@ -67,6 +67,28 @@ const toForm = (inst: Instrument): FormData => ({
 
 const clean = (v: string | null | undefined) => v?.trim() || null
 
+function Field({ label, field, type = 'text', required = false, form, onChange }: {
+  label: string
+  field: keyof FormData
+  type?: string
+  required?: boolean
+  form: FormData
+  onChange: (field: keyof FormData, value: string) => void
+}) {
+  return (
+    <div>
+      <label className="block text-xs text-gray-500 mb-1">{label}{required && ' *'}</label>
+      <input
+        type={type}
+        value={(form[field] as string | number) ?? ''}
+        onChange={e => onChange(field, e.target.value)}
+        required={required}
+        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
+  )
+}
+
 const compressImage = (file: File): Promise<Blob> =>
   new Promise(resolve => {
     const img = new Image()
@@ -234,21 +256,6 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
     }
   }
 
-  const Field = ({ label, field, type = 'text', required = false }: {
-    label: string; field: keyof FormData; type?: string; required?: boolean
-  }) => (
-    <div>
-      <label className="block text-xs text-gray-500 mb-1">{label}{required && ' *'}</label>
-      <input
-        type={type}
-        value={(form[field] as string | number) ?? ''}
-        onChange={e => set(field, e.target.value)}
-        required={required}
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
-  )
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
@@ -272,7 +279,7 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Required */}
           <div className="grid grid-cols-2 gap-4">
-            <Field label="儀器編號" field="instrument_no" required />
+            <Field label="儀器編號" field="instrument_no" required form={form} onChange={set} />
             <div>
               <label className="block text-xs text-gray-500 mb-1">類別 *</label>
               <select
@@ -286,7 +293,7 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
             </div>
           </div>
 
-          <Field label="儀器名稱" field="name" required />
+          <Field label="儀器名稱" field="name" required form={form} onChange={set} />
 
           {/* Subcategory custom dropdown */}
           <div>
@@ -369,17 +376,17 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
           {/* Optional fields */}
           <p className="text-xs text-gray-400 font-medium uppercase tracking-wide pt-1">基本資料</p>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="型號廠牌" field="model" />
-            <Field label="序號" field="serial_no" />
-            <Field label="製造廠商" field="manufacturer" />
-            <Field label="供應廠商" field="supplier" />
-            <Field label="放置地點" field="location" />
-            <Field label="保管人" field="custodian" />
+            <Field label="型號廠牌" field="model" form={form} onChange={set} />
+            <Field label="序號" field="serial_no" form={form} onChange={set} />
+            <Field label="製造廠商" field="manufacturer" form={form} onChange={set} />
+            <Field label="供應廠商" field="supplier" form={form} onChange={set} />
+            <Field label="放置地點" field="location" form={form} onChange={set} />
+            <Field label="保管人" field="custodian" form={form} onChange={set} />
           </div>
 
           <p className="text-xs text-gray-400 font-medium uppercase tracking-wide pt-1">財務資料</p>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="購入日期" field="purchase_date" type="date" />
+            <Field label="購入日期" field="purchase_date" type="date"  form={form} onChange={set} />
             <div>
               <label className="block text-xs text-gray-500 mb-1">購入成本</label>
               <input
@@ -390,8 +397,8 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <Field label="取得方法" field="acquisition_method" />
-            <Field label="保固截止日" field="warranty_expiry" type="date" />
+            <Field label="取得方法" field="acquisition_method" form={form} onChange={set} />
+            <Field label="保固截止日" field="warranty_expiry" type="date" form={form} onChange={set} />
             <div>
               <label className="block text-xs text-gray-500 mb-1">耐用年限</label>
               <input
@@ -401,12 +408,12 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <Field label="折舊方法" field="depreciation_method" />
+            <Field label="折舊方法" field="depreciation_method" form={form} onChange={set} />
           </div>
 
           <p className="text-xs text-gray-400 font-medium uppercase tracking-wide pt-1">校正資料</p>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="校正週期" field="calibration_cycle" />
+            <Field label="校正週期" field="calibration_cycle" form={form} onChange={set} />
             <div>
               <label className="block text-xs text-gray-500 mb-1">狀態</label>
               <select
