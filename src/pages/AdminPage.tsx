@@ -106,12 +106,14 @@ function InstrumentsTab() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>{['編號','類別','名稱','型號','放置地點','保管人','校正週期','狀態'].map(h => (
+                  <tr>{['編號','類別','分類','名稱','型號','放置地點','保管人','校正週期','狀態'].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}</tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {instruments.map(inst => (
+                  {instruments.map(inst => {
+                    const subcat = categories.find(c => c.name === inst.subcategory)
+                    return (
                     <tr
                       key={inst.id}
                       onClick={() => { setEditing(inst); setFormOpen(true) }}
@@ -119,6 +121,14 @@ function InstrumentsTab() {
                     >
                       <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{inst.instrument_no}</td>
                       <td className="px-4 py-3"><span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{inst.category}</span></td>
+                      <td className="px-4 py-3">
+                        {subcat ? (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap" style={{ backgroundColor: subcat.color + '20', color: subcat.color }}>
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: subcat.color }} />
+                            {subcat.name}
+                          </span>
+                        ) : <span className="text-gray-300">—</span>}
+                      </td>
                       <td className="px-4 py-3 font-medium text-gray-900 max-w-48 truncate">{inst.name}</td>
                       <td className="px-4 py-3 text-gray-500">{inst.model || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{inst.location || '—'}</td>
@@ -126,7 +136,8 @@ function InstrumentsTab() {
                       <td className="px-4 py-3 text-gray-500">{inst.calibration_cycle || '—'}</td>
                       <td className="px-4 py-3"><StatusBadge status={inst.status} size="sm" /></td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
