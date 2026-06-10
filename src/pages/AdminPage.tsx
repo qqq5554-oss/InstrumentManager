@@ -376,7 +376,7 @@ function EmployeeFormModal({ employee, onClose, onSaved, onToggleActive }: {
   const [name, setName] = useState(employee?.name ?? '')
   const [department, setDepartment] = useState(employee?.department ?? '')
   const [role, setRole] = useState<'admin' | 'user'>(employee?.role ?? 'user')
-  const [password, setPassword] = useState('')
+  const [password, setPassword] = useState(employee?.password ?? '')
   const [saving, setSaving] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [error, setError] = useState('')
@@ -392,7 +392,7 @@ function EmployeeFormModal({ employee, onClose, onSaved, onToggleActive }: {
       role,
     }
     if (!employee) payload.active = true
-    if (!employee || password) payload.password = password || null
+    payload.password = password || null
 
     const { error: err } = employee
       ? await supabase.from('employees').update(payload).eq('id', employee.id)
