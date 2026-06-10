@@ -6,6 +6,7 @@ import type { Instrument, InstrumentCategory } from '../types'
 import StatusBadge from '../components/StatusBadge'
 import InstrumentModal from '../components/InstrumentModal'
 import BulkBorrowModal from '../components/BulkBorrowModal'
+import { ReturnTermsModal } from '../components/TermsModal'
 
 interface ActiveLoan {
   id: string
@@ -46,6 +47,7 @@ export default function HomePage() {
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
   const [bulkOpen, setBulkOpen] = useState(false)
   const [favoriteFilter, setFavoriteFilter] = useState(false)
+  const [returnTermsLoan, setReturnTermsLoan] = useState<ActiveLoan | null>(null)
 
   const fetchAll = async () => {
     const [{ data: instData }, { data: loanData }, { data: catData }] = await Promise.all([
@@ -65,7 +67,14 @@ export default function HomePage() {
 
   useEffect(() => { fetchAll() }, [])
 
-  const handleCardReturn = async (loan: ActiveLoan) => {
+  const handleCardReturn = (loan: ActiveLoan) => {
+    setReturnTermsLoan(loan)
+  }
+
+  const confirmCardReturn = async () => {
+    if (!returnTermsLoan) return
+    const loan = returnTermsLoan
+    setReturnTermsLoan(null)
     const today = todayStr()
     await supabase.from('loans').update({ actual_return_date: today, status: 'returned' }).eq('id', loan.id)
     const { data: remaining } = await supabase.from('loans').select('id')
@@ -333,6 +342,9 @@ export default function HomePage() {
           onDone={() => { setBulkOpen(false); exitMultiMode(); fetchAll() }}
         />
       )}
+      {returnTermsLoan && (
+        <ReturnTermsModal onConfirm={confirmCardReturn} onCancel={() => setReturnTermsLoan(null)} />
+      )}
     </>
   )
 }
@@ -347,7 +359,7 @@ function InstrumentCard({
   onClick: () => void
   activeLoan?: ActiveLoan
   currentUserId?: string
-  onReturn?: (loan: ActiveLoan) => Promise<void>
+  onReturn?: (loan: ActiveLoan) => void
   today: string
   categories: InstrumentCategory[]
   onToggleFavorite?: (e: React.MouseEvent) => void
@@ -378,15 +390,11 @@ function InstrumentCard({
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-1 min-w-0">
           {onToggleFavorite ? (
-            <button
-              onClick={onToggleFavorite}
-              className="shrink-0 text-base leading-none focus:outline-none"
-              title={instrument.is_favorite ? '取消常用' : '加入常用'}
-            >
-              {instrument.is_favorite ? '⭐' : '☆'}
+            <button onClick={onToggleFavorite} className="shrink-0 focus:outline-none hover:scale-110 transition-transform" title={instrument.is_favorite ? '取消常用' : '加入常用'}>
+              <StarIcon filled={instrument.is_favorite} />
             </button>
           ) : (
-            instrument.is_favorite && <span className="shrink-0 text-base leading-none">⭐</span>
+            instrument.is_favorite && <StarIcon filled />
           )}
           <span className="text-xs text-gray-400 font-mono">{instrument.instrument_no}</span>
         </div>
@@ -434,5 +442,16 @@ function InstrumentCard({
         </div>
       </div>
     </div>
+  )
+}
+
+function StarIcon({ filled }: { filled?: boolean }) {
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24"
+      fill={filled ? '#F59E0B' : 'none'}
+      stroke={filled ? '#F59E0B' : '#9CA3AF'}
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
   )
 }
