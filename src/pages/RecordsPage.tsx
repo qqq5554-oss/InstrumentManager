@@ -35,6 +35,26 @@ export default function RecordsPage() {
   const [filterTo, setFilterTo] = useState('')
   const [selectedLoan, setSelectedLoan] = useState<LoanWithInstrument | null>(null)
   const [openExtend, setOpenExtend] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async (loan: LoanWithInstrument) => {
+    setDeleting(true)
+    await supabase.from('loans').delete().eq('id', loan.id)
+    if (loan.status !== 'returned') {
+      const { data: remaining } = await supabase
+        .from('loans').select('id')
+        .eq('instrument_id', loan.instrument_id)
+        .in('status', ['borrowed', 'reserved'])
+        .neq('id', loan.id)
+      if (!remaining || remaining.length === 0) {
+        await supabase.from('instruments').update({ status: 'available' }).eq('id', loan.instrument_id)
+      }
+    }
+    await fetchLoans()
+    setDeleting(false)
+    setSelectedLoan(null)
+    setOpenExtend(false)
+  }
 
   const fetchLoans = async () => {
     const { data } = await supabase
@@ -263,7 +283,9 @@ export default function RecordsPage() {
           onClose={() => { setSelectedLoan(null); setOpenExtend(false) }}
           onReturn={handleReturn}
           onExtended={() => { fetchLoans(); setSelectedLoan(null); setOpenExtend(false) }}
+          onDelete={handleDelete}
           returning={returning}
+          deleting={deleting}
           initialShowExtend={openExtend}
           hideReturn={openExtend}
         />
@@ -278,14 +300,16 @@ export default function RecordsPage() {
   )
 }
 
-function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onExtended, returning, initialShowExtend, hideReturn }: {
+function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onExtended, onDelete, returning, deleting, initialShowExtend, hideReturn }: {
   loan: LoanWithInstrument
   isAdmin: boolean
   currentUserId: string
   onClose: () => void
   onReturn: (loan: LoanWithInstrument) => void
   onExtended: () => void
+  onDelete: (loan: LoanWithInstrument) => void
   returning: string | null
+  deleting: boolean
   initialShowExtend?: boolean
   hideReturn?: boolean
 }) {
@@ -298,6 +322,7 @@ function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onEx
   const [extendReason, setExtendReason] = useState('')
   const [extendSubmitting, setExtendSubmitting] = useState(false)
   const [extendError, setExtendError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const handleExtend = async () => {
     if (!extendDate || !extendReason.trim()) return
@@ -425,6 +450,34 @@ function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onEx
               className="w-full px-4 py-2 text-sm bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-md font-medium transition-colors">
               {returning === loan.id ? '處理中...' : '歸還儀器'}
             </button>
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="px-5 pb-5 border-t border-gray-100 pt-4">
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                disabled={deleting}
+                className="w-full px-4 py-2 text-sm text-red-500 border border-red-200 hover:bg-red-50 hover:border-red-300 rounded-md font-medium transition-colors disabled:opacity-50"
+              >
+                刪除此紀錄
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-red-600 text-center font-medium">確定要刪除這筆借用紀錄？</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setConfirmDelete(false)}
+                    className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
+                    取消
+                  </button>
+                  <button onClick={() => onDelete(loan)} disabled={deleting}
+                    className="flex-1 px-4 py-2 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-md font-medium transition-colors">
+                    {deleting ? '刪除中...' : '確定刪除'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
