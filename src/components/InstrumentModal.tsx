@@ -49,6 +49,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     e.preventDefault()
     setError('')
     if (!borrowDate || !expectedReturn) { setError('請填寫借出日期與歸還日期'); return }
+    if (!purpose.trim()) { setError('請填寫專案/用途說明'); return }
     if (!currentUser) { setError('請先登入'); return }
 
     const { data: conflicts } = await supabase
@@ -330,13 +331,13 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">用途說明</label>
+                <label className="block text-xs text-gray-500 mb-1">專案/用途說明 *</label>
                 <textarea
                   value={purpose}
                   onChange={e => setPurpose(e.target.value)}
                   rows={2}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  placeholder="選填"
+                  placeholder="請說明借用用途或專案名稱..."
                 />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
