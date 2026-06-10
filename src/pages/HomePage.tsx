@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import type { Instrument } from '../types'
+import type { Instrument, InstrumentCategory } from '../types'
 import StatusBadge from '../components/StatusBadge'
 import InstrumentModal from '../components/InstrumentModal'
 import BulkBorrowModal from '../components/BulkBorrowModal'
@@ -38,21 +38,26 @@ export default function HomePage() {
   const [categoryFilter, setCategoryFilter] = useState('全部')
   const [selected, setSelected] = useState<Instrument | null>(null)
 
+  const [subcategoryFilter, setSubcategoryFilter] = useState('')
+  const [categories, setCategories] = useState<InstrumentCategory[]>([])
+
   const [multiMode, setMultiMode] = useState(false)
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
   const [bulkOpen, setBulkOpen] = useState(false)
 
   const fetchAll = async () => {
-    const [{ data: instData }, { data: loanData }] = await Promise.all([
+    const [{ data: instData }, { data: loanData }, { data: catData }] = await Promise.all([
       supabase.from('instruments').select('*').order('instrument_no'),
       supabase.from('loans')
         .select('id, instrument_id, employee_id, borrower_name, borrow_date, expected_return_date, status, instruments(name, instrument_no)')
         .in('status', ['borrowed', 'reserved'])
         .order('status')
         .order('borrow_date'),
+      supabase.from('instrument_categories').select('*').order('created_at'),
     ])
     if (instData) setInstruments(instData)
     if (loanData) setActiveLoans(loanData as unknown as ActiveLoan[])
+    if (catData) setCategories(catData)
     setLoading(false)
   }
 
@@ -76,7 +81,8 @@ export default function HomePage() {
     const matchSearch = !q || i.name.toLowerCase().includes(q) || i.instrument_no.toLowerCase().includes(q)
     const matchStatus = !statusFilter || i.status === statusFilter
     const matchCat = categoryFilter === '全部' || i.category === categoryFilter
-    return matchSearch && matchStatus && matchCat
+    const matchSubcat = !subcategoryFilter || i.subcategory === subcategoryFilter
+    return matchSearch && matchStatus && matchCat && matchSubcat
   })
 
   const stats = {
@@ -224,6 +230,40 @@ export default function HomePage() {
         </button>
       </div>
 
+      {/* 分類標籤列 */}
+      {categories.length > 0 && (
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+          <button
+            onClick={() => setSubcategoryFilter('')}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+              !subcategoryFilter
+                ? 'bg-gray-800 text-white border-gray-800'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            全部
+          </button>
+          {categories.map(cat => {
+            const count = instruments.filter(i => i.subcategory === cat.name).length
+            const isActive = subcategoryFilter === cat.name
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSubcategoryFilter(isActive ? '' : cat.name)}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
+                  isActive ? 'text-white border-transparent' : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                }`}
+                style={isActive ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
+              >
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.7)' : cat.color }} />
+                {cat.name}
+                <span className={`text-xs ${isActive ? 'opacity-75' : 'text-gray-400'}`}>({count})</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {/* Grid */}
       {loading ? (
         <div className="text-center py-20 text-gray-400">載入中...</div>
@@ -245,6 +285,7 @@ export default function HomePage() {
                 currentUserId={currentUser?.id}
                 onReturn={handleCardReturn}
                 today={today}
+                categories={categories}
               />
             )
           })}
@@ -288,7 +329,7 @@ export default function HomePage() {
 }
 
 function InstrumentCard({
-  instrument, multiMode, checked, onCheck, onClick, activeLoan, currentUserId, onReturn, today,
+  instrument, multiMode, checked, onCheck, onClick, activeLoan, currentUserId, onReturn, today, categories,
 }: {
   instrument: Instrument
   multiMode: boolean
@@ -299,6 +340,7 @@ function InstrumentCard({
   currentUserId?: string
   onReturn?: (loan: ActiveLoan) => Promise<void>
   today: string
+  categories: InstrumentCategory[]
 }) {
   const [returning, setReturning] = useState(false)
 
@@ -311,6 +353,7 @@ function InstrumentCard({
   }
 
   const isOverdue = activeLoan && activeLoan.expected_return_date < today
+  const subcat = categories.find(c => c.name === instrument.subcategory)
 
   return (
     <div
@@ -338,7 +381,15 @@ function InstrumentCard({
           )}
         </div>
       </div>
-      <p className="font-semibold text-gray-900 text-sm leading-snug mb-3 line-clamp-2">{instrument.name}</p>
+      <p className="font-semibold text-gray-900 text-sm leading-snug mb-2 line-clamp-2">{instrument.name}</p>
+      {subcat && (
+        <div className="mb-2">
+          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: subcat.color + '20', color: subcat.color }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: subcat.color }} />
+            {subcat.name}
+          </span>
+        </div>
+      )}
       <div className="flex items-end justify-between gap-2">
         <span className="text-xs text-gray-400 truncate">{instrument.location || '—'}</span>
         <div className="flex flex-col items-end gap-1 shrink-0">
