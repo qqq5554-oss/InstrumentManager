@@ -16,6 +16,7 @@ const today = () => format(new Date(), 'yyyy-MM-dd')
 
 export default function BulkBorrowModal({ instruments, onClose, onDone }: Props) {
   const { currentUser } = useAuth()
+  const [list, setList] = useState(instruments)
   const [borrowDate, setBorrowDate] = useState(today())
   const [expectedReturn, setExpectedReturn] = useState('')
   const [projectName, setProjectName] = useState('')
@@ -24,11 +25,21 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
   const [globalError, setGlobalError] = useState('')
   const [showTerms, setShowTerms] = useState(false)
 
+  const removeInstrument = (id: string) => {
+    setList(prev => prev.filter(i => i.id !== id))
+    setErrors(prev => { const next = { ...prev }; delete next[id]; return next })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!currentUser) return
     setErrors({})
     setGlobalError('')
+
+    if (list.length === 0) {
+      setGlobalError('請至少選擇一件儀器')
+      return
+    }
 
     if (!borrowDate || !expectedReturn) {
       setGlobalError('請填寫借出日期與歸還日期')
@@ -43,7 +54,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
     setSubmitting(true)
 
     const conflictChecks = await Promise.all(
-      instruments.map(async inst => {
+      list.map(async inst => {
         const { data } = await supabase
           .from('loans')
           .select('borrower_name, borrow_date, expected_return_date')
@@ -81,7 +92,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
     const loanStatus = borrowDate > today() ? 'reserved' : 'borrowed'
     const instrStatus = loanStatus === 'reserved' ? 'reserved' : 'borrowed'
 
-    const loansToInsert = instruments.map(inst => ({
+    const loansToInsert = list.map(inst => ({
       instrument_id: inst.id,
       employee_id: currentUser.id,
       borrower_name: currentUser.name,
@@ -95,7 +106,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
     const { error: insertErr } = await supabase.from('loans').insert(loansToInsert)
     if (insertErr) { setGlobalError('送出失敗：' + insertErr.message); setSubmitting(false); return }
 
-    const availableIds = instruments.filter(i => i.status === 'available').map(i => i.id)
+    const availableIds = list.filter(i => i.status === 'available').map(i => i.id)
     if (availableIds.length > 0) {
       await supabase.from('instruments').update({ status: instrStatus }).in('id', availableIds)
     }
@@ -111,7 +122,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">批量借用（{instruments.length} 件）</h2>
+          <h2 className="text-lg font-bold text-gray-900">批量借用（{list.length} 件）</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -121,14 +132,25 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
 
         <div className="p-5 space-y-4">
           <div className="border border-gray-200 rounded-lg overflow-hidden">
-            {instruments.map(inst => (
-              <div key={inst.id} className="px-3 py-2.5 border-b last:border-0 flex items-center justify-between gap-2">
-                <div>
+            {list.map(inst => (
+              <div key={inst.id} className="px-3 py-2.5 border-b last:border-0 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
                   <span className="text-xs text-gray-400 font-mono mr-2">{inst.instrument_no}</span>
                   <span className="text-sm text-gray-800">{inst.name}</span>
                   {errors[inst.id] && <p className="text-xs text-red-500 mt-0.5">{errors[inst.id]}</p>}
                 </div>
                 <StatusBadge status={inst.status} size="sm" />
+                <button
+                  type="button"
+                  onClick={() => removeInstrument(inst.id)}
+                  disabled={submitting}
+                  className="shrink-0 text-gray-300 hover:text-red-400 transition-colors p-0.5 rounded disabled:opacity-30"
+                  title="移除此儀器"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             ))}
           </div>
