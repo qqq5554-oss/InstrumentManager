@@ -8,7 +8,10 @@ interface Props {
   onSaved: () => void
   onDelete?: () => void
   categories: InstrumentCategory[]
+  onCategoriesChanged?: () => void
 }
+
+const CAT_COLORS = ['#6B7280','#3B82F6','#10B981','#EF4444','#F59E0B','#8B5CF6','#EC4899','#14B8A6','#F97316','#6366F1']
 
 type FormData = Omit<Instrument, 'id' | 'created_at'>
 
@@ -79,11 +82,27 @@ const compressImage = (file: File): Promise<Blob> =>
     img.src = url
   })
 
-export default function InstrumentFormModal({ instrument, onClose, onSaved, onDelete, categories }: Props) {
+export default function InstrumentFormModal({ instrument, onClose, onSaved, onDelete, categories, onCategoriesChanged }: Props) {
   const [form, setForm] = useState<FormData>(instrument ? toForm(instrument) : EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [catOpen, setCatOpen] = useState(false)
+  const [addingCat, setAddingCat] = useState(false)
+  const [newCatName, setNewCatName] = useState('')
+  const [newCatColor, setNewCatColor] = useState('#3B82F6')
+  const [catSaving, setCatSaving] = useState(false)
+
+  const handleAddCat = async () => {
+    if (!newCatName.trim() || catSaving) return
+    setCatSaving(true)
+    await supabase.from('instrument_categories').insert({ name: newCatName.trim(), color: newCatColor })
+    setForm(f => ({ ...f, subcategory: newCatName.trim() }))
+    onCategoriesChanged?.()
+    setNewCatName('')
+    setAddingCat(false)
+    setCatOpen(false)
+    setCatSaving(false)
+  }
 
   // Photo state
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -289,23 +308,57 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
               </button>
               {catOpen && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setCatOpen(false)} />
-                  <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                  <button type="button"
-                    onClick={() => { setForm(f => ({ ...f, subcategory: null })); setCatOpen(false) }}
-                    className="w-full px-3 py-2 text-sm text-left text-gray-400 hover:bg-gray-50">
-                    無分類
-                  </button>
-                  {categories.map(cat => (
-                    <button key={cat.id} type="button"
-                      onClick={() => { setForm(f => ({ ...f, subcategory: cat.name })); setCatOpen(false) }}
-                      className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 hover:bg-gray-50 ${form.subcategory === cat.name ? 'bg-blue-50' : ''}`}
-                    >
-                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                      {cat.name}
+                  <div className="fixed inset-0 z-10" onClick={() => { setCatOpen(false); setAddingCat(false) }} />
+                  <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden">
+                    {/* + 新增分類 */}
+                    <button type="button"
+                      onClick={() => setAddingCat(v => !v)}
+                      className="w-full px-3 py-2 text-sm text-left text-blue-600 hover:bg-blue-50 flex items-center gap-1 font-medium border-b border-gray-100">
+                      + 新增分類
                     </button>
-                  ))}
-                </div>
+                    {addingCat && (
+                      <div className="px-3 py-2.5 space-y-2 border-b border-gray-100 bg-blue-50/40">
+                        <input
+                          autoFocus
+                          type="text"
+                          value={newCatName}
+                          onChange={e => setNewCatName(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleAddCat()}
+                          placeholder="分類名稱"
+                          className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        <div className="flex flex-wrap gap-1.5">
+                          {CAT_COLORS.map(c => (
+                            <button key={c} type="button" onClick={() => setNewCatColor(c)}
+                              className={`w-5 h-5 rounded-full transition-all ${newCatColor === c ? 'ring-2 ring-offset-1 ring-gray-500 scale-110' : 'hover:scale-105'}`}
+                              style={{ backgroundColor: c }} />
+                          ))}
+                        </div>
+                        <button type="button" onClick={handleAddCat}
+                          disabled={!newCatName.trim() || catSaving}
+                          className="w-full text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded py-1.5 font-medium transition-colors">
+                          {catSaving ? '新增中...' : '確認新增'}
+                        </button>
+                      </div>
+                    )}
+                    {/* 現有分類 */}
+                    <div className="max-h-40 overflow-y-auto">
+                      {categories.map(cat => (
+                        <button key={cat.id} type="button"
+                          onClick={() => { setForm(f => ({ ...f, subcategory: cat.name })); setCatOpen(false); setAddingCat(false) }}
+                          className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 hover:bg-gray-50 ${form.subcategory === cat.name ? 'bg-blue-50' : ''}`}
+                        >
+                          <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                          {cat.name}
+                        </button>
+                      ))}
+                      <button type="button"
+                        onClick={() => { setForm(f => ({ ...f, subcategory: null })); setCatOpen(false); setAddingCat(false) }}
+                        className="w-full px-3 py-2 text-sm text-left text-gray-400 hover:bg-gray-50 border-t border-gray-100">
+                        無分類
+                      </button>
+                    </div>
+                  </div>
                 </>
               )}
             </div>
