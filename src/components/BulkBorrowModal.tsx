@@ -34,6 +34,11 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
       return
     }
 
+    if (!projectName.trim()) {
+      setGlobalError('請填寫專案名稱')
+      return
+    }
+
     setSubmitting(true)
 
     const conflictChecks = await Promise.all(
@@ -122,7 +127,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
               借用人：<span className="font-medium">{currentUser?.name}</span>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">專案名稱（選填）</label>
+              <label className="block text-xs text-gray-500 mb-1">專案名稱 *</label>
               <input
                 type="text"
                 value={projectName}
