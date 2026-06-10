@@ -182,7 +182,9 @@ function CategoryManageModal({ categories, onClose, onChanged }: {
 
   const handleDelete = async (id: string) => {
     setDeleting(id)
-    await supabase.from('instrument_categories').delete().eq('id', id)
+    setError('')
+    const { error: err } = await supabase.from('instrument_categories').delete().eq('id', id)
+    if (err) { setError('刪除失敗：' + err.message); setDeleting(null); return }
     onChanged()
     setDeleting(null)
   }
@@ -198,6 +200,7 @@ function CategoryManageModal({ categories, onClose, onChanged }: {
           </button>
         </div>
         <div className="p-5 space-y-4">
+          {error && <p className="text-sm text-red-500 bg-red-50 rounded-md px-3 py-2">{error}</p>}
           {/* 現有分類 */}
           <div className="space-y-2 max-h-52 overflow-y-auto">
             {categories.length === 0 ? (
