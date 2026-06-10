@@ -223,7 +223,7 @@ export default function HomePage() {
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors border ${
             multiMode
               ? 'bg-gray-100 border-gray-300 text-gray-600'
-              : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+              : 'bg-green-600 border-green-600 text-white hover:bg-green-700'
           }`}
         >
           {multiMode ? '取消多選' : '多選借用'}
