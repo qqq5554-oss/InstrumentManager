@@ -133,7 +133,7 @@ function InstrumentsTab() {
           </div>
         </>
       )}
-      {formOpen && <InstrumentFormModal instrument={editing} categories={categories} onClose={() => { setFormOpen(false); setEditing(null) }} onSaved={fetchInstruments} onDelete={editing ? () => { setFormOpen(false); setConfirmDelete(editing); setEditing(null) } : undefined} />}
+      {formOpen && <InstrumentFormModal instrument={editing} categories={categories} onCategoriesChanged={fetchCategories} onClose={() => { setFormOpen(false); setEditing(null) }} onSaved={fetchInstruments} onDelete={editing ? () => { setFormOpen(false); setConfirmDelete(editing); setEditing(null) } : undefined} />}
       {catManageOpen && <CategoryManageModal categories={categories} onClose={() => setCatManageOpen(false)} onChanged={fetchCategories} />}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={e => e.target === e.currentTarget && !deleting && setConfirmDelete(null)}>
