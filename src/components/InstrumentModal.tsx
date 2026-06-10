@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import type { Instrument, Loan } from '../types'
 import StatusBadge from './StatusBadge'
 import { BorrowTermsModal, ReturnTermsModal } from './TermsModal'
+import { notifyLineBorrow } from '../lib/lineNotify'
 
 interface Props {
   instrument: Instrument
@@ -95,6 +96,16 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     if (instrument.status === 'available') {
       await supabase.from('instruments').update({ status: loanStatus === 'reserved' ? 'reserved' : 'borrowed' }).eq('id', instrument.id)
     }
+
+    notifyLineBorrow({
+      status: loanStatus,
+      borrowerName: currentUser.name,
+      instrumentName: instrument.name,
+      instrumentNo: instrument.instrument_no,
+      projectName: purpose,
+      borrowDate,
+      expectedReturn,
+    })
 
     await fetchLoans()
     await onRefresh()
