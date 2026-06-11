@@ -172,28 +172,57 @@ function InstrumentsTab() {
   )
 }
 
-function SortableCategoryItem({ cat, deleting, onDelete }: {
+function SortableCategoryItem({ cat, deleting, onDelete, editingId, editName, editColor, onEdit, onEditName, onEditColor, onSaveEdit, onCancelEdit, editSaving }: {
   cat: InstrumentCategory; deleting: string | null; onDelete: (id: string) => void
+  editingId: string | null; editName: string; editColor: string; editSaving: boolean
+  onEdit: (cat: InstrumentCategory) => void; onEditName: (v: string) => void; onEditColor: (v: string) => void
+  onSaveEdit: () => void; onCancelEdit: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id })
+  const isEditing = editingId === cat.id
   return (
     <div ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-      <div className="flex items-center gap-2 min-w-0">
-        <button {...attributes} {...listeners}
-          className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none shrink-0 p-0.5">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M9 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9 17a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
-          </svg>
-        </button>
-        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-        <span className="text-sm text-gray-800 truncate">{cat.name}</span>
+      className="bg-gray-50 rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <button {...attributes} {...listeners}
+            className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none shrink-0 p-0.5">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M9 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9 17a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+            </svg>
+          </button>
+          <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+          <span className="text-sm text-gray-800 truncate">{cat.name}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          <button onClick={() => isEditing ? onCancelEdit() : onEdit(cat)}
+            className="text-xs text-blue-400 hover:text-blue-600">
+            {isEditing ? '取消' : '編輯'}
+          </button>
+          <button onClick={() => onDelete(cat.id)} disabled={deleting === cat.id}
+            className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50">
+            {deleting === cat.id ? '刪除中...' : '刪除'}
+          </button>
+        </div>
       </div>
-      <button onClick={() => onDelete(cat.id)} disabled={deleting === cat.id}
-        className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50 shrink-0 ml-2">
-        {deleting === cat.id ? '刪除中...' : '刪除'}
-      </button>
+      {isEditing && (
+        <div className="px-3 pb-3 space-y-2 border-t border-gray-200 pt-2">
+          <input type="text" value={editName} onChange={e => onEditName(e.target.value)}
+            className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div className="flex flex-wrap gap-1.5">
+            {COLOR_OPTIONS.map(c => (
+              <button key={c} type="button" onClick={() => onEditColor(c)}
+                className={`w-6 h-6 rounded-full transition-all ${editColor === c ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : 'hover:scale-105'}`}
+                style={{ backgroundColor: c }} />
+            ))}
+          </div>
+          <button onClick={onSaveEdit} disabled={editSaving}
+            className="w-full text-xs px-2 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded font-medium">
+            {editSaving ? '儲存中...' : '儲存變更'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -214,6 +243,10 @@ function CategoryManageModal({ categories, onClose, onChanged }: {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editColor, setEditColor] = useState('#3B82F6')
+  const [editSaving, setEditSaving] = useState(false)
 
   useEffect(() => { setList(categories) }, [categories])
 
@@ -230,6 +263,19 @@ function CategoryManageModal({ categories, onClose, onChanged }: {
       supabase.from('instrument_categories').update({ sort_order: i + 1 }).eq('id', cat.id)
     ))
     onChanged()
+  }
+
+  const handleEdit = (cat: InstrumentCategory) => { setEditingId(cat.id); setEditName(cat.name); setEditColor(cat.color) }
+  const handleCancelEdit = () => setEditingId(null)
+  const handleSaveEdit = async () => {
+    if (!editName.trim() || !editingId) return
+    setEditSaving(true)
+    setError('')
+    const { error: err } = await supabase.from('instrument_categories').update({ name: editName.trim(), color: editColor }).eq('id', editingId)
+    if (err) { setError(err.message.includes('unique') ? '此分類名稱已存在' : err.message); setEditSaving(false); return }
+    setEditingId(null)
+    onChanged()
+    setEditSaving(false)
   }
 
   const handleAdd = async () => {
@@ -271,7 +317,10 @@ function CategoryManageModal({ categories, onClose, onChanged }: {
                 {list.length === 0 ? (
                   <p className="text-sm text-gray-400 text-center py-4">尚無分類</p>
                 ) : list.map(cat => (
-                  <SortableCategoryItem key={cat.id} cat={cat} deleting={deleting} onDelete={handleDelete} />
+                  <SortableCategoryItem key={cat.id} cat={cat} deleting={deleting} onDelete={handleDelete}
+                    editingId={editingId} editName={editName} editColor={editColor} editSaving={editSaving}
+                    onEdit={handleEdit} onEditName={setEditName} onEditColor={setEditColor}
+                    onSaveEdit={handleSaveEdit} onCancelEdit={handleCancelEdit} />
                 ))}
               </div>
             </SortableContext>
