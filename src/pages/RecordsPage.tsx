@@ -62,6 +62,7 @@ export default function RecordsPage() {
       .from('loans')
       .select('*, instruments(name, instrument_no)')
       .order('created_at', { ascending: false })
+      .range(0, 4999)
     if (data) setLoans(data as LoanWithInstrument[])
     setLoading(false)
   }
