@@ -34,7 +34,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex flex-col items-center shrink-0">
-            <img src={logo} alt="Envirtrol System" className="h-8 w-auto" />
+            <img src={logo} alt="Envirtrol System" className="h-12 w-auto" />
             <span className="text-xs font-bold mt-0.5 hidden xs:block" style={{ color: '#7B1818' }}>大群儀器管理系統</span>
           </div>
 
