@@ -43,14 +43,17 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
 
   useEffect(() => {
     fetchLoans()
-    supabase.from('loans').select('project_name').not('project_name', 'is', null)
-      .order('created_at', { ascending: false }).limit(100)
-      .then(({ data }) => {
-        if (data) {
-          const unique = [...new Set(data.map(d => d.project_name as string))]
-          setRecentProjects(unique.slice(0, 8))
-        }
-      })
+    if (currentUser) {
+      supabase.from('loans').select('project_name').not('project_name', 'is', null)
+        .eq('employee_id', currentUser.id)
+        .order('created_at', { ascending: false }).limit(100)
+        .then(({ data }) => {
+          if (data) {
+            const unique = [...new Set(data.map(d => d.project_name as string))]
+            setRecentProjects(unique.slice(0, 8))
+          }
+        })
+    }
   }, [instrument.id])
 
   const fetchLoans = async () => {

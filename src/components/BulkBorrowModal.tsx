@@ -28,7 +28,9 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
   const [showTerms, setShowTerms] = useState(false)
 
   useEffect(() => {
+    if (!currentUser) return
     supabase.from('loans').select('project_name').not('project_name', 'is', null)
+      .eq('employee_id', currentUser.id)
       .order('created_at', { ascending: false }).limit(100)
       .then(({ data }) => {
         if (data) {
