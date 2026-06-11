@@ -380,6 +380,7 @@ function InstrumentCard({
   }
 
   const isOverdue = activeLoan && activeLoan.expected_return_date < today
+  const isBorrowed = instrument.status === 'borrowed' && !isOverdue
   const subcat = categories.find(c => c.name === instrument.subcategory)
 
   return (
@@ -388,8 +389,11 @@ function InstrumentCard({
       tabIndex={0}
       onClick={multiMode ? onCheck : onClick}
       onKeyDown={e => { if (e.key === 'Enter') multiMode ? onCheck() : onClick() }}
-      className={`bg-white rounded-lg border p-4 text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-        checked ? 'border-blue-500 ring-2 ring-blue-200' : isOverdue ? 'border-orange-300 hover:shadow-md' : 'border-gray-200 hover:shadow-md hover:border-blue-300'
+      className={`bg-white rounded-lg p-4 text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+        checked ? 'border-2 border-blue-500 ring-2 ring-blue-200'
+        : isOverdue ? 'border-2 border-orange-400 hover:shadow-md'
+        : isBorrowed ? 'border-2 border-red-400 hover:shadow-md'
+        : 'border border-gray-200 hover:shadow-md hover:border-blue-300'
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
