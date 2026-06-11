@@ -1,0 +1,17 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    - cron: '0 2 */3 * *'  # 每 3 天凌晨 2 點執行
+  workflow_dispatch:        # 允許手動觸發
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/instrument_categories?select=id&limit=1" \
+            -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}"
