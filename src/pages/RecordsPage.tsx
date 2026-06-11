@@ -161,6 +161,8 @@ export default function RecordsPage() {
     return items
   }, [filtered])
 
+const fmtDate = (d: string) => d.slice(5).replace('-', '/')
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-5">借用紀錄</h1>
@@ -185,101 +187,175 @@ export default function RecordsPage() {
       {loading ? (
         <div className="text-center py-20 text-gray-400">載入中...</div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  {['儀器名稱', '儀器編號', '借用人', '借出日', '預計歸還', '實際歸還', '專案／備註', '狀態', ''].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {renderItems.length === 0 ? (
-                  <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400">找不到符合條件的紀錄</td></tr>
-                ) : renderItems.map((item, i) => {
-                  if (item.kind === 'header') {
-                    const isReturning = returningProject === item.projectName
-                    return (
-                      <tr key={`header-${item.projectName}-${i}`} className="bg-blue-50 border-b border-blue-100">
-                        <td colSpan={9} className="px-4 py-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
-                              <span className="text-sm font-semibold text-blue-800">{item.projectName}</span>
-                              <span className="text-xs text-blue-500">
-                                {item.activeLoans.length > 0 ? `${item.activeLoans.length} 件借用中` : '已全部歸還'}
-                              </span>
+        <>
+          {/* 手機卡片 */}
+          <div className="sm:hidden space-y-2">
+            {renderItems.length === 0 ? (
+              <p className="text-center py-10 text-gray-400">找不到符合條件的紀錄</p>
+            ) : renderItems.map((item, i) => {
+              if (item.kind === 'header') {
+                const isReturning = returningProject === item.projectName
+                return (
+                  <div key={`mh-${item.projectName}-${i}`}
+                    className="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                      <span className="text-sm font-semibold text-blue-800 truncate">{item.projectName}</span>
+                      <span className="text-xs text-blue-500 shrink-0">
+                        {item.activeLoans.length > 0 ? `${item.activeLoans.length} 件` : '已歸還'}
+                      </span>
+                    </div>
+                    {item.activeLoans.length > 0 && isAdmin && (
+                      <button onClick={() => handleReturnProject(item.projectName, item.activeLoans)} disabled={isReturning}
+                        className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-2.5 py-1 rounded-md font-medium shrink-0 ml-2">
+                        {isReturning ? '處理中...' : `全部歸還`}
+                      </button>
+                    )}
+                  </div>
+                )
+              }
+
+              const { loan } = item
+              const days = overdayDays(loan)
+              const canAct = isAdmin || loan.employee_id === currentUser?.id
+              return (
+                <div key={`mc-${loan.id}`}
+                  onClick={() => setSelectedLoan(loan)}
+                  className={`bg-white rounded-lg border px-3 py-3 cursor-pointer active:bg-gray-50 ${loan.project_name ? 'border-l-4 border-l-blue-300 border-gray-200' : 'border-gray-200'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 text-sm leading-snug">{loan.instruments?.name || '—'}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {loan.borrower_name}・{fmtDate(loan.borrow_date)} ~ {fmtDate(loan.expected_return_date)}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        loan.status === 'returned' ? 'bg-gray-100 text-gray-500' :
+                        loan.status === 'borrowed' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {loan.status === 'returned' ? '已歸還' : loan.status === 'borrowed' ? '借出中' : '已預約'}
+                      </span>
+                      {days > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">逾期 {days} 天</span>
+                      )}
+                    </div>
+                  </div>
+                  {loan.status !== 'returned' && canAct && (
+                    <div className="flex gap-2 mt-2.5" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => { setSelectedLoan(loan); setOpenExtend(true) }}
+                        className="flex-1 text-xs bg-orange-500 hover:bg-orange-600 text-white py-1.5 rounded-md font-medium">
+                        申請延長
+                      </button>
+                      <button onClick={() => handleReturn(loan)}
+                        disabled={returning === loan.id || (returningProject !== null && returningProject === loan.project_name)}
+                        className="flex-1 text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-1.5 rounded-md font-medium">
+                        {returning === loan.id ? '處理中...' : '歸還'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* 桌機表格 */}
+          <div className="hidden sm:block bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    {['儀器名稱', '儀器編號', '借用人', '借出日', '預計歸還', '實際歸還', '專案／備註', '狀態', ''].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {renderItems.length === 0 ? (
+                    <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400">找不到符合條件的紀錄</td></tr>
+                  ) : renderItems.map((item, i) => {
+                    if (item.kind === 'header') {
+                      const isReturning = returningProject === item.projectName
+                      return (
+                        <tr key={`header-${item.projectName}-${i}`} className="bg-blue-50 border-b border-blue-100">
+                          <td colSpan={9} className="px-4 py-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                                <span className="text-sm font-semibold text-blue-800">{item.projectName}</span>
+                                <span className="text-xs text-blue-500">
+                                  {item.activeLoans.length > 0 ? `${item.activeLoans.length} 件借用中` : '已全部歸還'}
+                                </span>
+                              </div>
+                              {item.activeLoans.length > 0 && isAdmin && (
+                                <button onClick={() => handleReturnProject(item.projectName, item.activeLoans)} disabled={isReturning}
+                                  className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded-md font-medium transition-colors">
+                                  {isReturning ? '處理中...' : `全部歸還（${item.activeLoans.length} 件）`}
+                                </button>
+                              )}
                             </div>
-                            {item.activeLoans.length > 0 && isAdmin && (
-                              <button onClick={() => handleReturnProject(item.projectName, item.activeLoans)} disabled={isReturning}
-                                className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded-md font-medium transition-colors">
-                                {isReturning ? '處理中...' : `全部歸還（${item.activeLoans.length} 件）`}
-                              </button>
+                          </td>
+                        </tr>
+                      )
+                    }
+
+                    const { loan } = item
+                    const days = overdayDays(loan)
+                    return (
+                      <tr key={loan.id}
+                        onClick={() => setSelectedLoan(loan)}
+                        className={`cursor-pointer hover:bg-gray-50 transition-colors ${loan.project_name ? 'bg-blue-50/20' : ''}`}>
+                        <td className="px-4 py-3 font-medium text-gray-900">{loan.instruments?.name || '—'}</td>
+                        <td className="px-4 py-3 text-gray-500 font-mono text-xs">{loan.instruments?.instrument_no || '—'}</td>
+                        <td className="px-4 py-3 text-gray-700">{loan.borrower_name}</td>
+                        <td className="px-4 py-3 text-gray-600">{loan.borrow_date}</td>
+                        <td className="px-4 py-3 text-gray-600">{loan.expected_return_date}</td>
+                        <td className="px-4 py-3 text-gray-600">{loan.actual_return_date || '—'}</td>
+                        <td className="px-4 py-3 text-gray-500 max-w-40">
+                          {loan.purpose && <p className="text-xs truncate">{loan.purpose}</p>}
+                          {!loan.project_name && !loan.purpose && '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              loan.status === 'returned' ? 'bg-gray-100 text-gray-500' :
+                              loan.status === 'borrowed' ? 'bg-red-100 text-red-600' :
+                              'bg-amber-100 text-amber-700'
+                            }`}>
+                              {loan.status === 'returned' ? '已歸還' : loan.status === 'borrowed' ? '借出中' : '已預約'}
+                            </span>
+                            {days > 0 && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                                逾期 {days} 天
+                              </span>
                             )}
                           </div>
                         </td>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          {loan.status !== 'returned' && (isAdmin || loan.employee_id === currentUser?.id) && (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => { setSelectedLoan(loan); setOpenExtend(true) }}
+                                className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap">
+                                申請延長
+                              </button>
+                              <button
+                                onClick={() => handleReturn(loan)}
+                                disabled={returning === loan.id || (returningProject !== null && returningProject === loan.project_name)}
+                                className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-md font-medium transition-colors">
+                                {returning === loan.id ? '處理中...' : '歸還'}
+                              </button>
+                            </div>
+                          )}
+                        </td>
                       </tr>
                     )
-                  }
-
-                  const { loan } = item
-                  const days = overdayDays(loan)
-                  return (
-                    <tr key={loan.id}
-                      onClick={() => setSelectedLoan(loan)}
-                      className={`cursor-pointer hover:bg-gray-50 transition-colors ${loan.project_name ? 'bg-blue-50/20' : ''}`}>
-                      <td className="px-4 py-3 font-medium text-gray-900">{loan.instruments?.name || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500 font-mono text-xs">{loan.instruments?.instrument_no || '—'}</td>
-                      <td className="px-4 py-3 text-gray-700">{loan.borrower_name}</td>
-                      <td className="px-4 py-3 text-gray-600">{loan.borrow_date}</td>
-                      <td className="px-4 py-3 text-gray-600">{loan.expected_return_date}</td>
-                      <td className="px-4 py-3 text-gray-600">{loan.actual_return_date || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500 max-w-40">
-                        {loan.purpose && <p className="text-xs truncate">{loan.purpose}</p>}
-                        {!loan.project_name && !loan.purpose && '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            loan.status === 'returned' ? 'bg-gray-100 text-gray-500' :
-                            loan.status === 'borrowed' ? 'bg-red-100 text-red-600' :
-                            'bg-amber-100 text-amber-700'
-                          }`}>
-                            {loan.status === 'returned' ? '已歸還' : loan.status === 'borrowed' ? '借出中' : '已預約'}
-                          </span>
-                          {days > 0 && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                              逾期 {days} 天
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                        {loan.status !== 'returned' && (isAdmin || loan.employee_id === currentUser?.id) && (
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => { setSelectedLoan(loan); setOpenExtend(true) }}
-                              className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap">
-                              申請延長
-                            </button>
-                            <button
-                              onClick={() => handleReturn(loan)}
-                              disabled={returning === loan.id || (returningProject !== null && returningProject === loan.project_name)}
-                              className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-md font-medium transition-colors">
-                              {returning === loan.id ? '處理中...' : '歸還'}
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {selectedLoan && (
