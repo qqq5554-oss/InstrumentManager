@@ -46,6 +46,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     if (currentUser) {
       supabase.from('loans').select('project_name').not('project_name', 'is', null)
         .eq('employee_id', currentUser.id)
+        .in('status', ['borrowed', 'reserved'])
         .order('created_at', { ascending: false }).limit(100)
         .then(({ data }) => {
           if (data) {
