@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -21,10 +21,22 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
   const [borrowDate, setBorrowDate] = useState(today())
   const [expectedReturn, setExpectedReturn] = useState('')
   const [projectName, setProjectName] = useState('')
+  const [recentProjects, setRecentProjects] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState('')
   const [showTerms, setShowTerms] = useState(false)
+
+  useEffect(() => {
+    supabase.from('loans').select('project_name').not('project_name', 'is', null)
+      .order('created_at', { ascending: false }).limit(100)
+      .then(({ data }) => {
+        if (data) {
+          const unique = [...new Set(data.map(d => d.project_name as string))]
+          setRecentProjects(unique.slice(0, 8))
+        }
+      })
+  }, [])
 
   const removeInstrument = (id: string) => {
     setList(prev => prev.filter(i => i.id !== id))
@@ -178,6 +190,20 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
                 placeholder="例：A棟裝修工程、Q3校正作業..."
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              {recentProjects.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {recentProjects.map(p => (
+                    <button key={p} type="button" onClick={() => setProjectName(p)}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                        projectName === p
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'text-gray-600 border-gray-300 hover:border-blue-400 hover:text-blue-600'
+                      }`}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

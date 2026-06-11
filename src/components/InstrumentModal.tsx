@@ -26,6 +26,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
   const [borrowDate, setBorrowDate] = useState(today())
   const [expectedReturn, setExpectedReturn] = useState('')
   const [purpose, setPurpose] = useState('')
+  const [recentProjects, setRecentProjects] = useState<string[]>([])
 
   const [showBorrowTerms, setShowBorrowTerms] = useState(false)
   const [showReturnTerms, setShowReturnTerms] = useState(false)
@@ -40,7 +41,17 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
 
   const activeLoan = loans.find(l => l.status === 'borrowed')
 
-  useEffect(() => { fetchLoans() }, [instrument.id])
+  useEffect(() => {
+    fetchLoans()
+    supabase.from('loans').select('project_name').not('project_name', 'is', null)
+      .order('created_at', { ascending: false }).limit(100)
+      .then(({ data }) => {
+        if (data) {
+          const unique = [...new Set(data.map(d => d.project_name as string))]
+          setRecentProjects(unique.slice(0, 8))
+        }
+      })
+  }, [instrument.id])
 
   const fetchLoans = async () => {
     const { data } = await supabase
@@ -87,7 +98,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
       borrower_name: currentUser.name,
       borrow_date: borrowDate,
       expected_return_date: expectedReturn,
-      purpose: purpose || null,
+      project_name: purpose.trim() || null,
       status: loanStatus,
     })
 
@@ -379,6 +390,20 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   placeholder="請說明借用用途或專案名稱..."
                 />
+                {recentProjects.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {recentProjects.map(p => (
+                      <button key={p} type="button" onClick={() => setPurpose(p)}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                          purpose === p
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'text-gray-600 border-gray-300 hover:border-blue-400 hover:text-blue-600'
+                        }`}>
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <button
