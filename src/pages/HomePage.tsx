@@ -57,7 +57,7 @@ export default function HomePage() {
         .in('status', ['borrowed', 'reserved'])
         .order('status')
         .order('borrow_date'),
-      supabase.from('instrument_categories').select('*').order('created_at'),
+      supabase.from('instrument_categories').select('*').order('sort_order').order('created_at'),
     ])
     if (instData) setInstruments(instData)
     if (loanData) setActiveLoans(loanData as unknown as ActiveLoan[])
