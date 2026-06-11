@@ -3,6 +3,14 @@ import { supabase } from '../lib/supabase'
 import type { Instrument, Employee, InstrumentCategory } from '../types'
 import StatusBadge from '../components/StatusBadge'
 import InstrumentFormModal from '../components/InstrumentFormModal'
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove, SortableContext, verticalListSortingStrategy, useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 type Tab = 'instruments' | 'employees'
 
@@ -46,7 +54,7 @@ function InstrumentsTab() {
   }
 
   const fetchCategories = async () => {
-    const { data } = await supabase.from('instrument_categories').select('*').order('created_at')
+    const { data } = await supabase.from('instrument_categories').select('*').order('sort_order').order('created_at')
     if (data) setCategories(data)
   }
 
@@ -164,6 +172,32 @@ function InstrumentsTab() {
   )
 }
 
+function SortableCategoryItem({ cat, deleting, onDelete }: {
+  cat: InstrumentCategory; deleting: string | null; onDelete: (id: string) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id })
+  return (
+    <div ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+      <div className="flex items-center gap-2 min-w-0">
+        <button {...attributes} {...listeners}
+          className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none shrink-0 p-0.5">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M9 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9 17a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+          </svg>
+        </button>
+        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+        <span className="text-sm text-gray-800 truncate">{cat.name}</span>
+      </div>
+      <button onClick={() => onDelete(cat.id)} disabled={deleting === cat.id}
+        className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50 shrink-0 ml-2">
+        {deleting === cat.id ? '刪除中...' : '刪除'}
+      </button>
+    </div>
+  )
+}
+
 const COLOR_OPTIONS = [
   '#6B7280','#3B82F6','#10B981','#EF4444','#F59E0B',
   '#8B5CF6','#EC4899','#14B8A6','#F97316','#6366F1',
@@ -174,17 +208,35 @@ function CategoryManageModal({ categories, onClose, onChanged }: {
   onClose: () => void
   onChanged: () => void
 }) {
+  const [list, setList] = useState(categories)
   const [name, setName] = useState('')
   const [color, setColor] = useState('#3B82F6')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [error, setError] = useState('')
 
+  useEffect(() => { setList(categories) }, [categories])
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIdx = list.findIndex(c => c.id === active.id)
+    const newIdx = list.findIndex(c => c.id === over.id)
+    const newList = arrayMove(list, oldIdx, newIdx)
+    setList(newList)
+    await Promise.all(newList.map((cat, i) =>
+      supabase.from('instrument_categories').update({ sort_order: i + 1 }).eq('id', cat.id)
+    ))
+    onChanged()
+  }
+
   const handleAdd = async () => {
     if (!name.trim()) { setError('請填寫分類名稱'); return }
     setSaving(true)
     setError('')
-    const { error: err } = await supabase.from('instrument_categories').insert({ name: name.trim(), color })
+    const { error: err } = await supabase.from('instrument_categories').insert({ name: name.trim(), color, sort_order: list.length + 1 })
     if (err) { setError(err.message.includes('unique') ? '此分類名稱已存在' : err.message); setSaving(false); return }
     setName('')
     onChanged()
@@ -212,26 +264,18 @@ function CategoryManageModal({ categories, onClose, onChanged }: {
         </div>
         <div className="p-5 space-y-4">
           {error && <p className="text-sm text-red-500 bg-red-50 rounded-md px-3 py-2">{error}</p>}
-          {/* 現有分類 */}
-          <div className="space-y-2 max-h-52 overflow-y-auto">
-            {categories.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">尚無分類</p>
-            ) : categories.map(cat => (
-              <div key={cat.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                  <span className="text-sm text-gray-800">{cat.name}</span>
-                </div>
-                <button
-                  onClick={() => handleDelete(cat.id)}
-                  disabled={deleting === cat.id}
-                  className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
-                >
-                  {deleting === cat.id ? '刪除中...' : '刪除'}
-                </button>
+          {/* 現有分類（可拖曳排序） */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={list.map(c => c.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2 max-h-52 overflow-y-auto">
+                {list.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">尚無分類</p>
+                ) : list.map(cat => (
+                  <SortableCategoryItem key={cat.id} cat={cat} deleting={deleting} onDelete={handleDelete} />
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
           {/* 新增分類 */}
           <div className="border-t border-gray-100 pt-4 space-y-3">
             <p className="text-xs text-gray-500 font-medium">新增分類</p>

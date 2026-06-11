@@ -29,6 +29,7 @@ export interface InstrumentCategory {
   id: string
   name: string
   color: string
+  sort_order: number | null
   created_at: string
 }
 
