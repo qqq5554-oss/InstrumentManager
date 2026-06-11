@@ -65,7 +65,12 @@ export default function HomePage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => {
+    fetchAll()
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchAll() }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
 
   const handleCardReturn = (loan: ActiveLoan) => {
     setReturnTermsLoan(loan)

@@ -66,7 +66,12 @@ export default function RecordsPage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchLoans() }, [])
+  useEffect(() => {
+    fetchLoans()
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchLoans() }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
 
   const handleReturn = (loan: LoanWithInstrument) => {
     setReturnTermsLoan(loan)
