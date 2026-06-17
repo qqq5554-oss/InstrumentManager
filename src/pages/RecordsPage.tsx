@@ -137,27 +137,32 @@ export default function RecordsPage() {
 
   const renderItems = useMemo((): RenderItem[] => {
     const byProject = new Map<string, LoanWithInstrument[]>()
+    const projectOrder: string[] = []
+    const noProject: LoanWithInstrument[] = []
+
     for (const loan of filtered) {
       if (loan.project_name) {
-        const arr = byProject.get(loan.project_name) ?? []
-        arr.push(loan)
-        byProject.set(loan.project_name, arr)
+        if (!byProject.has(loan.project_name)) {
+          byProject.set(loan.project_name, [])
+          projectOrder.push(loan.project_name)
+        }
+        byProject.get(loan.project_name)!.push(loan)
+      } else {
+        noProject.push(loan)
       }
     }
+
     const items: RenderItem[] = []
-    const seen = new Set<string>()
-    for (const loan of filtered) {
-      if (loan.project_name) {
-        if (!seen.has(loan.project_name)) {
-          seen.add(loan.project_name)
-          const projectLoans = byProject.get(loan.project_name)!
-          const activeLoans = projectLoans.filter(l => l.status !== 'returned')
-          items.push({ kind: 'header', projectName: loan.project_name, activeLoans })
-        }
-        items.push({ kind: 'loan', loan })
-      } else {
+    for (const projectName of projectOrder) {
+      const projectLoans = byProject.get(projectName)!
+      const activeLoans = projectLoans.filter(l => l.status !== 'returned')
+      items.push({ kind: 'header', projectName, activeLoans })
+      for (const loan of projectLoans) {
         items.push({ kind: 'loan', loan })
       }
+    }
+    for (const loan of noProject) {
+      items.push({ kind: 'loan', loan })
     }
     return items
   }, [filtered])
