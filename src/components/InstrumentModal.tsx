@@ -63,6 +63,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
       .select('*')
       .eq('instrument_id', instrument.id)
       .order('created_at', { ascending: false })
+      .limit(5)
     if (data) setLoans(data)
   }
 
@@ -423,7 +424,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
           {/* Loan history */}
           {loans.length > 0 && (
             <div>
-              <h3 className="font-semibold text-gray-800 mb-3 text-sm">借用紀錄</h3>
+              <h3 className="font-semibold text-gray-800 mb-3 text-sm">借用紀錄（近5筆）</h3>
               <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
                 {loans.map(loan => (
                   <div key={loan.id} className="px-3 py-2.5 text-xs flex flex-wrap gap-x-4 gap-y-1 bg-white">
