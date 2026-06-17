@@ -412,6 +412,9 @@ function InstrumentCard({
           {isOverdue && (
             <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">逾期</span>
           )}
+          {instrument.calibration_cycle === '定期校正' && (
+            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">定期校正</span>
+          )}
           <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{instrument.category}</span>
           {multiMode && (
             <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
