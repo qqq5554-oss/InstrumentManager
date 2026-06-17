@@ -58,6 +58,7 @@ export default function RecordsPage() {
   }
 
   const fetchLoans = async () => {
+    await supabase.rpc('auto_activate_reservations')
     const { data } = await supabase
       .from('loans')
       .select('*, instruments(name, instrument_no)')

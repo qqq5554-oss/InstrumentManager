@@ -50,6 +50,7 @@ export default function HomePage() {
   const [returnTermsLoan, setReturnTermsLoan] = useState<ActiveLoan | null>(null)
 
   const fetchAll = async () => {
+    await supabase.rpc('auto_activate_reservations')
     const [{ data: instData }, { data: loanData }, { data: catData }] = await Promise.all([
       supabase.from('instruments').select('*').order('instrument_no'),
       supabase.from('loans')
