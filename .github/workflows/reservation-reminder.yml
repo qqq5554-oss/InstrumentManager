@@ -1,0 +1,17 @@
+name: Reservation Reminder
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # 每天 16:00 台灣時間（UTC+8）
+  workflow_dispatch:       # 允許手動觸發測試
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reservation reminder
+        run: |
+          curl -s -X POST \
+            "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/reservation-reminder" \
+            -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json"
