@@ -30,12 +30,13 @@ export default function AdminPage() {
         <h1 className="text-2xl font-bold text-gray-900">管理後台</h1>
         <button
           onClick={toggleTestMode}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
             testMode
               ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
               : 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
           }`}
         >
+          <span className="text-gray-500 font-normal">LINE 發報：</span>
           {testMode ? '🧪 測試群組' : '✅ 正式群組'}
         </button>
       </div>
