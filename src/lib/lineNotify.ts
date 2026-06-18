@@ -1,5 +1,8 @@
 const NOTIFY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/line-notify`
 
+const testMode = () => localStorage.getItem('lineTestMode') === 'true'
+const withMode = (body: object) => ({ ...body, ...(testMode() && { testMode: true }) })
+
 export async function notifyLineMalfunction(params: {
   borrowerName: string
   instrumentName: string
@@ -10,7 +13,7 @@ export async function notifyLineMalfunction(params: {
     await fetch(NOTIFY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...params, type: 'maintenance' }),
+      body: JSON.stringify(withMode({ ...params, type: 'maintenance' })),
     })
   } catch {
     // notification failure should not block the main flow
@@ -30,7 +33,7 @@ export async function notifyLineBorrow(params: {
     await fetch(NOTIFY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify(withMode(params)),
     })
   } catch {
     // notification failure should not block the main flow
@@ -48,7 +51,7 @@ export async function notifyLineExtend(params: {
     await fetch(NOTIFY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...params, type: 'extend' }),
+      body: JSON.stringify(withMode({ ...params, type: 'extend' })),
     })
   } catch {
     // notification failure should not block the main flow
@@ -67,7 +70,7 @@ export async function notifyLineBulkBorrow(params: {
     await fetch(NOTIFY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...params, bulk: true }),
+      body: JSON.stringify(withMode({ ...params, bulk: true })),
     })
   } catch {
     // notification failure should not block the main flow

@@ -16,11 +16,28 @@ type Tab = 'instruments' | 'employees'
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('instruments')
+  const [testMode, setTestMode] = useState(() => localStorage.getItem('lineTestMode') === 'true')
+
+  const toggleTestMode = () => {
+    const next = !testMode
+    setTestMode(next)
+    localStorage.setItem('lineTestMode', next ? 'true' : 'false')
+  }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-bold text-gray-900">管理後台</h1>
+        <button
+          onClick={toggleTestMode}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+            testMode
+              ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
+              : 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
+          }`}
+        >
+          {testMode ? '🧪 測試群組' : '✅ 正式群組'}
+        </button>
       </div>
       <div className="flex gap-1 mb-5 border-b border-gray-200">
         {([['instruments', '儀器管理'], ['employees', '人員管理']] as [Tab, string][]).map(([key, label]) => (
