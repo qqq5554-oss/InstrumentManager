@@ -100,7 +100,10 @@ export default function HomePage() {
     setReturnTermsLoan(null)
     const today = todayStr()
     await supabase.from('loans').update({ actual_return_date: today, status: 'returned' }).eq('id', loan.id)
-    await supabase.from('instruments').update({ status: 'maintenance' }).eq('id', loan.instrument_id)
+    const { error: instErr } = await supabase.from('instruments').update({ status: 'maintenance' }).eq('id', loan.instrument_id)
+    if (instErr) {
+      alert('儀器狀態更新失敗：' + instErr.message)
+    }
     notifyLineMalfunction({
       borrowerName: currentUser.name,
       instrumentName: loan.instruments?.name ?? '',
