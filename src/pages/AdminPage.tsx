@@ -154,7 +154,7 @@ function InstrumentsTab() {
                       className="hover:bg-gray-50 cursor-pointer"
                     >
                       <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{inst.instrument_no}</td>
-                      <td className="px-4 py-3"><span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{inst.category}</span></td>
+                      <td className="px-4 py-3 whitespace-nowrap"><span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{inst.category}</span></td>
                       <td className="px-4 py-3">
                         {subcat ? (
                           <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap" style={{ backgroundColor: subcat.color + '20', color: subcat.color }}>
@@ -166,9 +166,9 @@ function InstrumentsTab() {
                       <td className="px-4 py-3 font-medium text-gray-900 max-w-48 truncate">{inst.name}</td>
                       <td className="px-4 py-3 text-gray-500">{inst.model || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{inst.location || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{inst.custodian || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{inst.custodian || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{inst.calibration_cycle || '—'}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <StatusBadge status={inst.status} size="sm" />
                           {inst.status === 'maintenance' && (

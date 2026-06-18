@@ -23,6 +23,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
 
   const isNotAvailable = instrument.status !== 'available'
   const isMaintenance = instrument.status === 'maintenance'
+  const isAdmin = currentUser?.role === 'admin'
 
   const [borrowDate, setBorrowDate] = useState(today())
   const [expectedReturn, setExpectedReturn] = useState('')
@@ -379,8 +380,20 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
               {isNotAvailable ? '申請預約' : '申請借用'}
             </h3>
             {isMaintenance ? (
-              <div className="bg-purple-50 border border-purple-200 rounded-md p-3 text-sm text-purple-700">
-                此儀器目前維修中，無法借用或預約，請等待管理員恢復後再操作。
+              <div className="bg-purple-50 border border-purple-200 rounded-md p-3 text-sm text-purple-700 space-y-2">
+                <p>此儀器目前維修中，無法借用或預約，請等待管理員恢復後再操作。</p>
+                {isAdmin && (
+                  <button
+                    onClick={async () => {
+                      await supabase.from('instruments').update({ status: 'available' }).eq('id', instrument.id)
+                      await onRefresh()
+                      onClose()
+                    }}
+                    className="w-full px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-md transition-colors"
+                  >
+                    恢復可借用
+                  </button>
+                )}
               </div>
             ) : (
             <form onSubmit={handleSubmit} className="space-y-3">

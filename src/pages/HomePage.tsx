@@ -190,7 +190,7 @@ export default function HomePage() {
       </div>
 
       {/* Active loans dashboard */}
-      {activeLoans.length > 0 && (
+      {(activeLoans.length > 0 || instruments.some(i => i.status === 'maintenance')) && (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
             <span className="relative flex h-2 w-2 shrink-0">
@@ -199,13 +199,28 @@ export default function HomePage() {
             </span>
             <h2 className="text-sm font-semibold text-gray-700">目前使用狀況</h2>
             <span className="text-xs text-gray-400 ml-1">
+              {instruments.filter(i => i.status === 'maintenance').length > 0 && `維修中 ${instruments.filter(i => i.status === 'maintenance').length} 件`}
+              {instruments.filter(i => i.status === 'maintenance').length > 0 && stats.borrowed > 0 && '、'}
               {stats.borrowed > 0 && `借出中 ${stats.borrowed} 件`}
               {stats.borrowed > 0 && stats.reserved > 0 && '、'}
               {stats.reserved > 0 && `已預約 ${stats.reserved} 件`}
             </span>
           </div>
           <div className="divide-y divide-gray-50 max-h-52 overflow-y-auto">
-            {activeLoans.map(loan => {
+            {/* 維修中置頂 */}
+            {instruments.filter(i => i.status === 'maintenance').map(inst => (
+              <div key={inst.id} className="px-4 py-2.5 flex items-center gap-3 text-sm bg-purple-50">
+                <span className="shrink-0 px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">維修中</span>
+                <span className="font-medium text-gray-800 flex-1 truncate">{inst.name}</span>
+                <span className="text-xs text-gray-400 font-mono shrink-0 hidden sm:block">{inst.instrument_no}</span>
+              </div>
+            ))}
+            {/* 逾期置頂，再接一般借出/預約 */}
+            {[...activeLoans].sort((a, b) => {
+              const aOver = a.expected_return_date < today ? 1 : 0
+              const bOver = b.expected_return_date < today ? 1 : 0
+              return bOver - aOver
+            }).map(loan => {
               const daysOverdue = loan.expected_return_date < today
                 ? Math.round((new Date(today).getTime() - new Date(loan.expected_return_date).getTime()) / 86400000)
                 : 0
@@ -235,6 +250,7 @@ export default function HomePage() {
       )}
 
       {/* Filters + multi-select toggle */}
+
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <input
           type="text"
