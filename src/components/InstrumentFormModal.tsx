@@ -424,6 +424,7 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
                 <option value="available">可借用</option>
                 <option value="borrowed">借出中</option>
                 <option value="reserved">已預約</option>
+                <option value="maintenance">維修中</option>
               </select>
             </div>
           </div>
