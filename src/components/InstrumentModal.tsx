@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import type { Instrument, Loan } from '../types'
 import StatusBadge from './StatusBadge'
 import { BorrowTermsModal, ReturnTermsModal } from './TermsModal'
-import { notifyLineBorrow, notifyLineExtend } from '../lib/lineNotify'
+import { notifyLineBorrow, notifyLineExtend, notifyLineMalfunction } from '../lib/lineNotify'
 
 interface Props {
   instrument: Instrument
@@ -22,6 +22,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
   const [error, setError] = useState('')
 
   const isNotAvailable = instrument.status !== 'available'
+  const isMaintenance = instrument.status === 'maintenance'
 
   const [borrowDate, setBorrowDate] = useState(today())
   const [expectedReturn, setExpectedReturn] = useState('')
@@ -151,6 +152,25 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     if (!remaining || remaining.length === 0) {
       await supabase.from('instruments').update({ status: 'available' }).eq('id', instrument.id)
     }
+    await fetchLoans()
+    await onRefresh()
+    setReturning(null)
+  }
+
+  const handleReportMalfunction = async (description: string) => {
+    if (!pendingReturnLoan || !currentUser) return
+    const loan = pendingReturnLoan
+    setShowReturnTerms(false)
+    setPendingReturnLoan(null)
+    setReturning(loan.id)
+    await supabase.from('loans').update({ actual_return_date: today(), status: 'returned' }).eq('id', loan.id)
+    await supabase.from('instruments').update({ status: 'maintenance' }).eq('id', instrument.id)
+    notifyLineMalfunction({
+      borrowerName: currentUser.name,
+      instrumentName: instrument.name,
+      instrumentNo: instrument.instrument_no,
+      description,
+    })
     await fetchLoans()
     await onRefresh()
     setReturning(null)
@@ -358,6 +378,11 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
             <h3 className="font-semibold text-gray-800 mb-3 text-sm">
               {isNotAvailable ? '申請預約' : '申請借用'}
             </h3>
+            {isMaintenance ? (
+              <div className="bg-purple-50 border border-purple-200 rounded-md p-3 text-sm text-purple-700">
+                此儀器目前維修中，無法借用或預約，請等待管理員恢復後再操作。
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="bg-gray-50 rounded-md px-3 py-2 text-sm text-gray-700">
                 借用人：<span className="font-medium">{currentUser?.name}</span>
@@ -419,6 +444,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
                 {submitting ? '送出中...' : isNotAvailable ? '送出預約申請' : '送出借用申請'}
               </button>
             </form>
+            )}
           </div>
 
           {/* Loan history */}
@@ -450,7 +476,11 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
       <BorrowTermsModal onConfirm={confirmBorrow} onCancel={() => setShowBorrowTerms(false)} />
     )}
     {showReturnTerms && (
-      <ReturnTermsModal onConfirm={confirmReturn} onCancel={() => { setShowReturnTerms(false); setPendingReturnLoan(null) }} />
+      <ReturnTermsModal
+        onConfirm={confirmReturn}
+        onCancel={() => { setShowReturnTerms(false); setPendingReturnLoan(null) }}
+        onReportMalfunction={handleReportMalfunction}
+      />
     )}
     </>
   )

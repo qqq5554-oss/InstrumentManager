@@ -17,7 +17,7 @@ export interface Instrument {
   depreciation_method: string | null
   calibration_cycle: string | null
   calibration_notes: string | null
-  status: 'available' | 'borrowed' | 'reserved' | 'overdue'
+  status: 'available' | 'borrowed' | 'reserved' | 'overdue' | 'maintenance'
   photo_url: string | null
   report_url: string | null
   subcategory: string | null

@@ -105,6 +105,14 @@ function InstrumentsTab() {
                   {inst.model && <p>{inst.model}</p>}
                   {inst.location && <p>{inst.location}</p>}
                 </div>
+                {inst.status === 'maintenance' && (
+                  <button
+                    onClick={async e => { e.stopPropagation(); await supabase.from('instruments').update({ status: 'available' }).eq('id', inst.id); fetchInstruments() }}
+                    className="mt-2 text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md font-medium"
+                  >
+                    恢復可借用
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -142,7 +150,19 @@ function InstrumentsTab() {
                       <td className="px-4 py-3 text-gray-500">{inst.location || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{inst.custodian || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{inst.calibration_cycle || '—'}</td>
-                      <td className="px-4 py-3"><StatusBadge status={inst.status} size="sm" /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={inst.status} size="sm" />
+                          {inst.status === 'maintenance' && (
+                            <button
+                              onClick={async e => { e.stopPropagation(); await supabase.from('instruments').update({ status: 'available' }).eq('id', inst.id); fetchInstruments() }}
+                              className="text-xs bg-green-600 hover:bg-green-700 text-white px-2.5 py-0.5 rounded-md font-medium whitespace-nowrap"
+                            >
+                              恢復可借用
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                     )
                   })}

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import type { Loan } from '../types'
 import { ReturnTermsModal } from '../components/TermsModal'
-import { notifyLineExtend } from '../lib/lineNotify'
+import { notifyLineExtend, notifyLineMalfunction } from '../lib/lineNotify'
 
 interface LoanWithInstrument extends Omit<Loan, 'instruments'> {
   instruments: { name: string; instrument_no: string } | null
@@ -93,6 +93,25 @@ export default function RecordsPage() {
     if (!remaining || remaining.length === 0) {
       await supabase.from('instruments').update({ status: 'available' }).eq('id', loan.instrument_id)
     }
+    await fetchLoans()
+    setReturning(null)
+    setSelectedLoan(null)
+    setOpenExtend(false)
+  }
+
+  const handleMalfunctionReturn = async (description: string) => {
+    if (!returnTermsLoan || !currentUser) return
+    const loan = returnTermsLoan
+    setReturnTermsLoan(null)
+    setReturning(loan.id)
+    await supabase.from('loans').update({ actual_return_date: today(), status: 'returned' }).eq('id', loan.id)
+    await supabase.from('instruments').update({ status: 'maintenance' }).eq('id', loan.instrument_id)
+    notifyLineMalfunction({
+      borrowerName: currentUser.name,
+      instrumentName: loan.instruments?.name ?? '',
+      instrumentNo: loan.instruments?.instrument_no ?? '',
+      description,
+    })
     await fetchLoans()
     setReturning(null)
     setSelectedLoan(null)
@@ -380,7 +399,11 @@ const fmtDate = (d: string) => d.slice(5).replace('-', '/')
         />
       )}
       {returnTermsLoan && (
-        <ReturnTermsModal onConfirm={confirmReturn} onCancel={() => setReturnTermsLoan(null)} />
+        <ReturnTermsModal
+          onConfirm={confirmReturn}
+          onCancel={() => setReturnTermsLoan(null)}
+          onReportMalfunction={handleMalfunctionReturn}
+        />
       )}
       {returnTermsProject && (
         <ReturnTermsModal onConfirm={confirmReturnProject} onCancel={() => setReturnTermsProject(null)} />

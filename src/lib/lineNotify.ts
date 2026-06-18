@@ -1,5 +1,22 @@
 const NOTIFY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/line-notify`
 
+export async function notifyLineMalfunction(params: {
+  borrowerName: string
+  instrumentName: string
+  instrumentNo: string
+  description: string
+}) {
+  try {
+    await fetch(NOTIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...params, type: 'maintenance' }),
+    })
+  } catch {
+    // notification failure should not block the main flow
+  }
+}
+
 export async function notifyLineBorrow(params: {
   status: 'borrowed' | 'reserved'
   borrowerName: string

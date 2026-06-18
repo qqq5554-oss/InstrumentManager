@@ -7,6 +7,7 @@ import StatusBadge from '../components/StatusBadge'
 import InstrumentModal from '../components/InstrumentModal'
 import BulkBorrowModal from '../components/BulkBorrowModal'
 import { ReturnTermsModal } from '../components/TermsModal'
+import { notifyLineMalfunction } from '../lib/lineNotify'
 
 interface ActiveLoan {
   id: string
@@ -90,6 +91,22 @@ export default function HomePage() {
     if (!remaining || remaining.length === 0) {
       await supabase.from('instruments').update({ status: 'available' }).eq('id', loan.instrument_id)
     }
+    await fetchAll()
+  }
+
+  const handleCardMalfunction = async (description: string) => {
+    if (!returnTermsLoan || !currentUser) return
+    const loan = returnTermsLoan
+    setReturnTermsLoan(null)
+    const today = todayStr()
+    await supabase.from('loans').update({ actual_return_date: today, status: 'returned' }).eq('id', loan.id)
+    await supabase.from('instruments').update({ status: 'maintenance' }).eq('id', loan.instrument_id)
+    notifyLineMalfunction({
+      borrowerName: currentUser.name,
+      instrumentName: loan.instruments?.name ?? '',
+      instrumentNo: loan.instruments?.instrument_no ?? '',
+      description,
+    })
     await fetchAll()
   }
 
@@ -349,7 +366,11 @@ export default function HomePage() {
         />
       )}
       {returnTermsLoan && (
-        <ReturnTermsModal onConfirm={confirmCardReturn} onCancel={() => setReturnTermsLoan(null)} />
+        <ReturnTermsModal
+          onConfirm={confirmCardReturn}
+          onCancel={() => setReturnTermsLoan(null)}
+          onReportMalfunction={handleCardMalfunction}
+        />
       )}
     </>
   )
