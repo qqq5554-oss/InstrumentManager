@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import type { Loan } from '../types'
 import { ReturnTermsModal } from '../components/TermsModal'
-import { notifyLineExtend, notifyLineMalfunction } from '../lib/lineNotify'
 
 interface LoanWithInstrument extends Omit<Loan, 'instruments'> {
   instruments: { name: string; instrument_no: string } | null
@@ -99,19 +98,13 @@ export default function RecordsPage() {
     setOpenExtend(false)
   }
 
-  const handleMalfunctionReturn = async (description: string) => {
+  const handleMalfunctionReturn = async (_description: string) => {
     if (!returnTermsLoan || !currentUser) return
     const loan = returnTermsLoan
     setReturnTermsLoan(null)
     setReturning(loan.id)
     await supabase.from('loans').update({ actual_return_date: today(), status: 'returned' }).eq('id', loan.id)
     await supabase.from('instruments').update({ status: 'maintenance' }).eq('id', loan.instrument_id)
-    notifyLineMalfunction({
-      borrowerName: currentUser.name,
-      instrumentName: loan.instruments?.name ?? '',
-      instrumentNo: loan.instruments?.instrument_no ?? '',
-      description,
-    })
     await fetchLoans()
     setReturning(null)
     setSelectedLoan(null)
@@ -464,14 +457,6 @@ function LoanDetailModal({ loan, isAdmin, currentUserId, onClose, onReturn, onEx
     if (inst?.status === 'overdue') {
       await supabase.from('instruments').update({ status: 'borrowed' }).eq('id', loan.instrument_id)
     }
-
-    notifyLineExtend({
-      borrowerName: loan.borrower_name,
-      instrumentName: loan.instruments?.name ?? '未知儀器',
-      instrumentNo: loan.instruments?.instrument_no ?? '',
-      newReturnDate: extendDate,
-      reason: extendReason.trim(),
-    })
 
     setExtendSubmitting(false)
     onExtended()

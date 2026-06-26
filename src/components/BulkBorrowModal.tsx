@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext'
 import type { Instrument } from '../types'
 import StatusBadge from './StatusBadge'
 import { BorrowTermsModal } from './TermsModal'
-import { notifyLineBulkBorrow } from '../lib/lineNotify'
 
 interface Props {
   instruments: Instrument[]
@@ -126,15 +125,6 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
     if (availableIds.length > 0) {
       await supabase.from('instruments').update({ status: instrStatus }).in('id', availableIds)
     }
-
-    notifyLineBulkBorrow({
-      status: loanStatus,
-      borrowerName: currentUser.name,
-      instruments: list.map(i => ({ name: i.name, instrument_no: i.instrument_no })),
-      projectName,
-      borrowDate,
-      expectedReturn,
-    })
 
     onDone()
   }
