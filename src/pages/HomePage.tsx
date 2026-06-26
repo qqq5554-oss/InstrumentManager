@@ -7,6 +7,7 @@ import StatusBadge from '../components/StatusBadge'
 import InstrumentModal from '../components/InstrumentModal'
 import BulkBorrowModal from '../components/BulkBorrowModal'
 import { ReturnTermsModal } from '../components/TermsModal'
+import { notifyLineMalfunction } from '../lib/lineNotify'
 
 interface ActiveLoan {
   id: string
@@ -93,7 +94,7 @@ export default function HomePage() {
     await fetchAll()
   }
 
-  const handleCardMalfunction = async (_description: string) => {
+  const handleCardMalfunction = async (description: string) => {
     if (!returnTermsLoan || !currentUser) return
     const loan = returnTermsLoan
     setReturnTermsLoan(null)
@@ -103,6 +104,12 @@ export default function HomePage() {
     if (instErr) {
       alert('儀器狀態更新失敗：' + instErr.message)
     }
+    notifyLineMalfunction({
+      borrowerName: currentUser.name,
+      instrumentName: loan.instruments?.name ?? '',
+      instrumentNo: loan.instruments?.instrument_no ?? '',
+      description,
+    })
     await fetchAll()
   }
 
