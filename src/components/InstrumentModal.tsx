@@ -382,7 +382,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
               <div className="bg-gray-50 rounded-md px-3 py-2 text-sm text-gray-700">
                 借用人：<span className="font-medium">{currentUser?.name}</span>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">借出日期 *</label>
                   <input
