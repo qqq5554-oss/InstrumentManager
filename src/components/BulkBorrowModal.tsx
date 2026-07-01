@@ -206,7 +206,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
                   value={borrowDate}
                   onChange={e => setBorrowDate(e.target.value)}
                   min={today()}
-                  className="w-full min-w-0 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                  className="w-full min-w-0 appearance-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
                   required
                 />
               </div>
@@ -217,7 +217,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
                   value={expectedReturn}
                   min={borrowDate}
                   onChange={e => setExpectedReturn(e.target.value)}
-                  className="w-full min-w-0 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                  className="w-full min-w-0 appearance-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
                   required
                 />
               </div>

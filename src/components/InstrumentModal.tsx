@@ -318,7 +318,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
                               value={extendDate}
                               min={l.expected_return_date > todayVal ? l.expected_return_date : todayVal}
                               onChange={e => setExtendDate(e.target.value)}
-                              className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full min-w-0 appearance-none rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
                             />
                           </div>
                           <div>
@@ -390,7 +390,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
                     value={borrowDate}
                     min={today()}
                     onChange={e => setBorrowDate(e.target.value)}
-                    className="w-full min-w-0 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                    className="w-full min-w-0 appearance-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
                     required
                   />
                 </div>
@@ -401,7 +401,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
                     value={expectedReturn}
                     min={borrowDate}
                     onChange={e => setExpectedReturn(e.target.value)}
-                    className="w-full min-w-0 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                    className="w-full min-w-0 appearance-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
                     required
                   />
                 </div>
