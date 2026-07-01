@@ -136,7 +136,7 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
       onClick={e => e.target === e.currentTarget && !submitting && onClose()}
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+        <div className="sticky top-0 z-10 bg-white flex items-center justify-between p-5 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-900">批量借用（{list.length} 件）</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -217,7 +217,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b border-gray-100">
+        <div className="sticky top-0 z-10 bg-white flex items-start justify-between p-5 border-b border-gray-100">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs text-gray-400 font-mono">{instrument.instrument_no}</span>

@@ -261,8 +261,8 @@ export default function InstrumentFormModal({ instrument, onClose, onSaved, onDe
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
       onClick={e => { if (e.target === e.currentTarget && !saving) { onClose(); setCatOpen(false) } }}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <div className="sticky top-0 z-10 bg-white flex items-center justify-between p-5 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-900">
             {instrument ? '編輯儀器' : '新增儀器'}
           </h2>
