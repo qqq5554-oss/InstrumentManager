@@ -14,6 +14,21 @@ import { CSS } from '@dnd-kit/utilities'
 
 type Tab = 'instruments' | 'employees'
 
+const INSTRUMENT_COLUMNS = [
+  { key: 'no', label: '編號', width: 120 },
+  { key: 'category', label: '類別', width: 80 },
+  { key: 'subcategory', label: '分類', width: 120 },
+  { key: 'name', label: '名稱', width: 200 },
+  { key: 'model', label: '型號', width: 180 },
+  { key: 'location', label: '放置地點', width: 140 },
+  { key: 'custodian', label: '保管人', width: 100 },
+  { key: 'cycle', label: '校正週期', width: 120 },
+  { key: 'status', label: '狀態', width: 160 },
+] as const
+
+const DEFAULT_COL_WIDTHS: Record<string, number> =
+  Object.fromEntries(INSTRUMENT_COLUMNS.map(c => [c.key, c.width]))
+
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('instruments')
   const [testMode, setTestMode] = useState(() => localStorage.getItem('lineTestMode') === 'true')
@@ -64,6 +79,37 @@ function InstrumentsTab() {
   const [deleting, setDeleting] = useState(false)
   const [categories, setCategories] = useState<InstrumentCategory[]>([])
   const [catManageOpen, setCatManageOpen] = useState(false)
+
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('adminColWidths')
+      if (saved) return { ...DEFAULT_COL_WIDTHS, ...JSON.parse(saved) }
+    } catch { /* ignore */ }
+    return DEFAULT_COL_WIDTHS
+  })
+
+  const startResize = (key: string, e: React.PointerEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const startX = e.clientX
+    const startW = colWidths[key]
+    const onMove = (ev: PointerEvent) => {
+      const w = Math.max(60, startW + ev.clientX - startX)
+      setColWidths(prev => ({ ...prev, [key]: w }))
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      setColWidths(prev => {
+        localStorage.setItem('adminColWidths', JSON.stringify(prev))
+        return prev
+      })
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  const totalWidth = INSTRUMENT_COLUMNS.reduce((sum, c) => sum + colWidths[c.key], 0)
 
   const fetchInstruments = async () => {
     const { data } = await supabase.from('instruments').select('*').order('instrument_no')
@@ -138,10 +184,24 @@ function InstrumentsTab() {
           {/* 桌機表格 */}
           <div className="hidden sm:block bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="text-sm table-fixed" style={{ width: totalWidth }}>
+                <colgroup>
+                  {INSTRUMENT_COLUMNS.map(c => (
+                    <col key={c.key} style={{ width: colWidths[c.key] }} />
+                  ))}
+                </colgroup>
                 <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>{['編號','類別','分類','名稱','型號','放置地點','保管人','校正週期','狀態'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  <tr>{INSTRUMENT_COLUMNS.map(c => (
+                    <th key={c.key} className="relative px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      <span className="block truncate">{c.label}</span>
+                      <span
+                        onPointerDown={e => startResize(c.key, e)}
+                        className="absolute top-0 right-0 h-full w-2 cursor-col-resize touch-none select-none flex justify-center group"
+                        title="拖曳調整欄寬"
+                      >
+                        <span className="w-px h-full bg-gray-200 group-hover:bg-blue-400 group-hover:w-0.5" />
+                      </span>
+                    </th>
                   ))}</tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -153,22 +213,22 @@ function InstrumentsTab() {
                       onClick={() => { setEditing(inst); setFormOpen(true) }}
                       className="hover:bg-gray-50 cursor-pointer"
                     >
-                      <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{inst.instrument_no}</td>
-                      <td className="px-4 py-3 whitespace-nowrap"><span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{inst.category}</span></td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-500 truncate">{inst.instrument_no}</td>
+                      <td className="px-4 py-3 truncate"><span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{inst.category}</span></td>
+                      <td className="px-4 py-3 truncate">
                         {subcat ? (
-                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap" style={{ backgroundColor: subcat.color + '20', color: subcat.color }}>
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium max-w-full" style={{ backgroundColor: subcat.color + '20', color: subcat.color }}>
                             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: subcat.color }} />
-                            {subcat.name}
+                            <span className="truncate">{subcat.name}</span>
                           </span>
                         ) : <span className="text-gray-300">—</span>}
                       </td>
-                      <td className="px-4 py-3 font-medium text-gray-900 max-w-48 truncate">{inst.name}</td>
-                      <td className="px-4 py-3 text-gray-500">{inst.model || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{inst.location || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{inst.custodian || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{inst.calibration_cycle || '—'}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-3 font-medium text-gray-900 truncate" title={inst.name}>{inst.name}</td>
+                      <td className="px-4 py-3 text-gray-500 truncate" title={inst.model || ''}>{inst.model || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500 truncate" title={inst.location || ''}>{inst.location || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500 truncate">{inst.custodian || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500 truncate" title={inst.calibration_cycle || ''}>{inst.calibration_cycle || '—'}</td>
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <StatusBadge status={inst.status} size="sm" />
                           {inst.status === 'maintenance' && (
