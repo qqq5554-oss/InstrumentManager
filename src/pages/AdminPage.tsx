@@ -193,13 +193,14 @@ function InstrumentsTab() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>{INSTRUMENT_COLUMNS.map(c => (
                     <th key={c.key} className="relative px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
-                      <span className="block truncate">{c.label}</span>
+                      <span className="block truncate pr-2">{c.label}</span>
                       <span
                         onPointerDown={e => startResize(c.key, e)}
-                        className="absolute top-0 right-0 h-full w-2 cursor-col-resize touch-none select-none flex justify-center group"
+                        onClick={e => e.stopPropagation()}
+                        className="absolute top-0 right-0 h-full w-4 cursor-col-resize touch-none select-none flex justify-center items-center group"
                         title="拖曳調整欄寬"
                       >
-                        <span className="w-px h-full bg-gray-200 group-hover:bg-blue-400 group-hover:w-0.5" />
+                        <span className="w-0.5 h-4 rounded bg-gray-300 group-hover:bg-blue-500 group-hover:h-full transition-all" />
                       </span>
                     </th>
                   ))}</tr>
