@@ -14,3 +14,13 @@ createRoot(document.getElementById('root')!).render(
     </HashRouter>
   </StrictMode>,
 )
+
+// 註冊 Service Worker（供 Web Push 通知使用；不影響既有版本更新機制）
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const base = import.meta.env.BASE_URL
+    navigator.serviceWorker.register(`${base}sw.js`, { scope: base }).catch(() => {
+      /* SW 註冊失敗不影響主功能 */
+    })
+  })
+}

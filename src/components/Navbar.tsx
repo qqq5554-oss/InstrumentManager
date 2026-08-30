@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import logo from '../logo.png'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import NotificationToggle from './NotificationToggle'
 import type { Employee } from '../types'
 
 export default function Navbar() {
@@ -43,6 +44,7 @@ export default function Navbar() {
             <NavLink to="/" end className={desktopLinkClass}>儀器總覽</NavLink>
             <NavLink to="/records" className={desktopLinkClass}>借用紀錄</NavLink>
             {isAdmin && <NavLink to="/admin" className={desktopLinkClass}>管理後台</NavLink>}
+            <div className="ml-2"><NotificationToggle variant="desktop" /></div>
             <div className="ml-3 pl-3 border-l border-gray-200 flex items-center gap-2">
               <button
                 onClick={() => { if (!isAdmin) setPwOpen(true) }}
@@ -107,6 +109,9 @@ export default function Navbar() {
                 管理後台
               </NavLink>
             )}
+          </div>
+          <div className="px-4 pb-1">
+            <NotificationToggle variant="mobile" />
           </div>
           <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
             <div>
