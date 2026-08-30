@@ -3,14 +3,17 @@
 前端架構已完成（Service Worker、訂閱流程、Navbar 的「開啟通知」按鈕）。
 要讓通知實際運作，還需要以下一次性設定。
 
-## 1. VAPID 金鑰（已產生）
+## 1. VAPID 金鑰
+
+Public Key（公開，可放這裡）：
 
 ```
-Public Key:  BKWXsN943e2pjApIdy81vx2YrbvjsG60snBHSFLVsMUGHLO8GVFkJhKQ_aOBLmNeBhvPXTNTzEcg7VTirxbZCDo
-Private Key: oJaJKcSx4S1UGfTzdJZUir9-ceKXiv-L6ihCxMriyos
+BLWCBDWxKqwNWjLBSRNUiZxs43tRpNZYcSTuOBEezpNXPRFCAB9nPVqzLMyxmb_QxSAczAeEv52SQSfZq2jIJTw
 ```
 
-> Private Key 是機密，只放在 Supabase Secrets，不要外流。
+> **Private Key 是機密，不寫入這個 repo（repo 為公開）。**
+> 私鑰請從對話取得，只貼到 Supabase Secrets。若擔心外流，可用
+> `npx web-push generate-vapid-keys` 自行重新產生一組（公私鑰要成對更新）。
 
 ## 2. GitHub Secret（前端 build 用）
 
