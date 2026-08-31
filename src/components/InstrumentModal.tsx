@@ -6,6 +6,7 @@ import type { Instrument, Loan } from '../types'
 import StatusBadge from './StatusBadge'
 import { BorrowTermsModal, ReturnTermsModal } from './TermsModal'
 import { notifyLineMalfunction } from '../lib/lineNotify'
+import { notifyEvent } from '../lib/pushEvents'
 
 interface Props {
   instrument: Instrument
@@ -115,6 +116,16 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
       await supabase.from('instruments').update({ status: loanStatus === 'reserved' ? 'reserved' : 'borrowed' }).eq('id', instrument.id)
     }
 
+    // 有人預約你正借用中的儀器 → 通知目前借用人
+    if (loanStatus === 'reserved') {
+      const { data: active } = await supabase.from('loans')
+        .select('employee_id').eq('instrument_id', instrument.id)
+        .eq('status', 'borrowed').is('actual_return_date', null).limit(1).maybeSingle()
+      if (active?.employee_id && active.employee_id !== currentUser.id) {
+        notifyEvent('reserved_for_you', { employeeIds: [active.employee_id], vars: { instrument: instrument.name } })
+      }
+    }
+
     await fetchLoans()
     await onRefresh()
     setBorrowDate(today())
@@ -162,6 +173,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
       instrumentNo: instrument.instrument_no,
       description,
     })
+    notifyEvent('malfunction', { vars: { instrument: instrument.name, borrower: currentUser.name } })
     await fetchLoans()
     await onRefresh()
     setReturning(null)

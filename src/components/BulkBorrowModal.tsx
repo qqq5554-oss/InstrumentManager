@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import type { Instrument } from '../types'
 import StatusBadge from './StatusBadge'
 import { BorrowTermsModal } from './TermsModal'
+import { notifyEvent } from '../lib/pushEvents'
 
 interface Props {
   instruments: Instrument[]
@@ -124,6 +125,20 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
     const availableIds = list.filter(i => i.status === 'available').map(i => i.id)
     if (availableIds.length > 0) {
       await supabase.from('instruments').update({ status: instrStatus }).in('id', availableIds)
+    }
+
+    // 有人預約你正借用中的儀器 → 通知目前借用人
+    if (loanStatus === 'reserved') {
+      const { data: actives } = await supabase.from('loans')
+        .select('employee_id, instruments(name)')
+        .in('instrument_id', list.map(i => i.id))
+        .eq('status', 'borrowed').is('actual_return_date', null)
+      const targetIds = [...new Set(
+        (actives ?? [])
+          .map((a: { employee_id: string | null }) => a.employee_id)
+          .filter(id => id && id !== currentUser.id),
+      )] as string[]
+      if (targetIds.length > 0) notifyEvent('reserved_for_you', { employeeIds: targetIds })
     }
 
     onDone()

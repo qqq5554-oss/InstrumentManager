@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import type { Loan } from '../types'
 import { ReturnTermsModal } from '../components/TermsModal'
 import { notifyLineMalfunction } from '../lib/lineNotify'
+import { notifyEvent } from '../lib/pushEvents'
 
 interface LoanWithInstrument extends Omit<Loan, 'instruments'> {
   instruments: { name: string; instrument_no: string } | null
@@ -112,6 +113,7 @@ export default function RecordsPage() {
       instrumentNo: loan.instruments?.instrument_no ?? '',
       description,
     })
+    notifyEvent('malfunction', { vars: { instrument: loan.instruments?.name ?? '', borrower: currentUser.name } })
     await fetchLoans()
     setReturning(null)
     setSelectedLoan(null)

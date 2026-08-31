@@ -8,6 +8,7 @@ import InstrumentModal from '../components/InstrumentModal'
 import BulkBorrowModal from '../components/BulkBorrowModal'
 import { ReturnTermsModal } from '../components/TermsModal'
 import { notifyLineMalfunction } from '../lib/lineNotify'
+import { notifyEvent } from '../lib/pushEvents'
 
 interface ActiveLoan {
   id: string
@@ -110,6 +111,7 @@ export default function HomePage() {
       instrumentNo: loan.instruments?.instrument_no ?? '',
       description,
     })
+    notifyEvent('malfunction', { vars: { instrument: loan.instruments?.name ?? '', borrower: currentUser.name } })
     await fetchAll()
   }
 
