@@ -122,7 +122,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
         .select('employee_id').eq('instrument_id', instrument.id)
         .eq('status', 'borrowed').is('actual_return_date', null).limit(1).maybeSingle()
       if (active?.employee_id && active.employee_id !== currentUser.id) {
-        notifyEvent('reserved_for_you', { employeeIds: [active.employee_id], vars: { instrument: instrument.name } })
+        notifyEvent('reserved_for_you', { employeeIds: [active.employee_id], vars: { instrument: instrument.name, reserver: currentUser.name } })
       }
     }
 

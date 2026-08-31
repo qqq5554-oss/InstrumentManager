@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({})) as {
       event_key?: string
       employeeIds?: string[]
-      vars?: { instrument?: string; borrower?: string }
+      vars?: { instrument?: string; borrower?: string; reserver?: string }
       scan?: boolean
     }
 
@@ -40,8 +40,11 @@ Deno.serve(async (req) => {
     const settings: Record<string, { enabled: boolean; audience: string; title: string; body: string }> = {}
     for (const r of settingRows ?? []) settings[r.event_key] = r
 
-    const interp = (t: string, vars?: { instrument?: string; borrower?: string }) =>
-      (t || '').replace(/\{instrument\}/g, vars?.instrument ?? '').replace(/\{borrower\}/g, vars?.borrower ?? '')
+    const interp = (t: string, vars?: { instrument?: string; borrower?: string; reserver?: string }) =>
+      (t || '')
+        .replace(/\{instrument\}/g, vars?.instrument ?? '')
+        .replace(/\{borrower\}/g, vars?.borrower ?? '')
+        .replace(/\{reserver\}/g, vars?.reserver ?? '')
 
     async function adminIds(): Promise<string[]> {
       const { data } = await supabase.from('employees').select('id').eq('role', 'admin')

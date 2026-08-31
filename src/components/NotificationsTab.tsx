@@ -30,7 +30,7 @@ const DEFAULTS: Record<string, Omit<Setting, 'event_key'>> = {
   reservation_conflict: { enabled: true, audience: 'borrower', title: '儀器歸還提醒', body: '明日有人預約你借用中的儀器，請於今日下班前歸還' },
   overdue: { enabled: true, audience: 'borrower', title: '儀器逾期未還', body: '你借用的儀器已逾期，請盡快歸還' },
   malfunction: { enabled: true, audience: 'admins', title: '儀器異常回報', body: '有儀器被回報異常，已轉為維修中，請確認處理' },
-  reserved_for_you: { enabled: true, audience: 'borrower', title: '儀器被預約', body: '你正借用中的儀器已有人預約，請留意歸還時間' },
+  reserved_for_you: { enabled: true, audience: 'borrower', title: '儀器被預約', body: '你正借用中的儀器「{instrument}」已有人預約（{reserver} 預約），請留意歸還時間或提前協調儀器使用' },
 }
 
 export default function NotificationsTab() {
@@ -144,6 +144,11 @@ export default function NotificationsTab() {
                     rows={2}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 resize-none"
                   />
+                  <p className="text-xs text-gray-400 mt-1">
+                    可用變數：<code className="bg-gray-100 px-1 rounded">{'{instrument}'}</code> 儀器名、
+                    <code className="bg-gray-100 px-1 rounded">{'{reserver}'}</code> 預約人、
+                    <code className="bg-gray-100 px-1 rounded">{'{borrower}'}</code> 借用人
+                  </p>
                 </div>
                 <div className="flex justify-end mt-3">
                   <button
