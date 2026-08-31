@@ -6,7 +6,8 @@ export function useVersionCheck() {
 
     const check = async () => {
       try {
-        const base = import.meta.env.BASE_URL
+        const raw = import.meta.env.BASE_URL || '/'
+        const base = raw.endsWith('/') ? raw : raw + '/'
         const res = await fetch(`${base}version.json?_=${Date.now()}`)
         if (!res.ok) return
         const { v } = await res.json()

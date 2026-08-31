@@ -5,6 +5,10 @@ import { writeFileSync } from 'fs'
 
 const buildVersion = Date.now().toString()
 
+// 確保 base 結尾一定有斜線（否則 BASE_URL 拼接會少一個斜線，導致 sw.js / version.json 404）
+const rawBase = process.env.VITE_BASE_PATH || '/'
+const normalizedBase = rawBase.endsWith('/') ? rawBase : rawBase + '/'
+
 export default defineConfig({
   plugins: [
     react(),
@@ -20,5 +24,5 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(buildVersion),
   },
-  base: process.env.VITE_BASE_PATH || '/',
+  base: normalizedBase,
 })
