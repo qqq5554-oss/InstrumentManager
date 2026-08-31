@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { Instrument, Employee, InstrumentCategory } from '../types'
 import StatusBadge from '../components/StatusBadge'
 import InstrumentFormModal from '../components/InstrumentFormModal'
+import NotificationsTab from '../components/NotificationsTab'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -12,7 +13,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-type Tab = 'instruments' | 'employees'
+type Tab = 'instruments' | 'employees' | 'notifications'
 
 const INSTRUMENT_COLUMNS = [
   { key: 'no', label: '編號', width: 120 },
@@ -84,7 +85,7 @@ export default function AdminPage() {
         </div>
       </div>
       <div className="flex gap-1 mb-5 border-b border-gray-200">
-        {([['instruments', '儀器管理'], ['employees', '人員管理']] as [Tab, string][]).map(([key, label]) => (
+        {([['instruments', '儀器管理'], ['employees', '人員管理'], ['notifications', '通知管理']] as [Tab, string][]).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
               tab === key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -93,7 +94,7 @@ export default function AdminPage() {
           </button>
         ))}
       </div>
-      {tab === 'instruments' ? <InstrumentsTab /> : <EmployeesTab />}
+      {tab === 'instruments' ? <InstrumentsTab /> : tab === 'employees' ? <EmployeesTab /> : <NotificationsTab />}
     </div>
   )
 }
