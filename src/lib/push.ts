@@ -19,7 +19,8 @@ export function pushSupported(): boolean {
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) return null
-  const base = import.meta.env.BASE_URL
+  const raw = import.meta.env.BASE_URL || '/'
+  const base = raw.endsWith('/') ? raw : raw + '/'
   return navigator.serviceWorker.register(`${base}sw.js`, { scope: base })
 }
 
