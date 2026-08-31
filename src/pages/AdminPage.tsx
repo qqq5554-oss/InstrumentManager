@@ -39,21 +39,49 @@ export default function AdminPage() {
     localStorage.setItem('lineTestMode', next ? 'true' : 'false')
   }
 
+  const [pushTesting, setPushTesting] = useState(false)
+  const sendTestPush = async () => {
+    setPushTesting(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('send-push', {
+        body: { title: '測試通知', body: '這是一則來自系統的測試通知 🎉' },
+      })
+      if (error) {
+        alert('發送失敗：' + error.message)
+      } else {
+        alert('發送結果：' + JSON.stringify(data))
+      }
+    } catch (e) {
+      alert('發送失敗：' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setPushTesting(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-bold text-gray-900">管理後台</h1>
-        <button
-          onClick={toggleTestMode}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-            testMode
-              ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
-              : 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
-          }`}
-        >
-          <span className="text-gray-500 font-normal">LINE 發報：</span>
-          {testMode ? '🧪 測試群組' : '✅ 正式群組'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={sendTestPush}
+            disabled={pushTesting}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+          >
+            🔔 {pushTesting ? '發送中…' : '測試通知'}
+          </button>
+          <button
+            onClick={toggleTestMode}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              testMode
+                ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
+                : 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
+            }`}
+          >
+            <span className="text-gray-500 font-normal">LINE 發報：</span>
+            {testMode ? '🧪 測試群組' : '✅ 正式群組'}
+          </button>
+        </div>
       </div>
       <div className="flex gap-1 mb-5 border-b border-gray-200">
         {([['instruments', '儀器管理'], ['employees', '人員管理']] as [Tab, string][]).map(([key, label]) => (
