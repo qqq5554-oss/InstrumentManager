@@ -59,11 +59,37 @@ export default function AdminPage() {
     }
   }
 
+  const [scanning, setScanning] = useState(false)
+  const runScan = async () => {
+    setScanning(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('notify-event', {
+        body: { scan: true },
+      })
+      if (error) {
+        alert('掃描失敗：' + error.message)
+      } else {
+        alert('掃描結果：' + JSON.stringify(data))
+      }
+    } catch (e) {
+      alert('掃描失敗：' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setScanning(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-bold text-gray-900">管理後台</h1>
         <div className="flex items-center gap-2">
+          <button
+            onClick={runScan}
+            disabled={scanning}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+          >
+            🔍 {scanning ? '掃描中…' : '立即掃描逾期/預約'}
+          </button>
           <button
             onClick={sendTestPush}
             disabled={pushTesting}
