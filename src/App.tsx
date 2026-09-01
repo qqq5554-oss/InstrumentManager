@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import { useVersionCheck } from './hooks/useVersionCheck'
+import { useSwipeBack } from './hooks/useSwipeBack'
 import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import RecordsPage from './pages/RecordsPage'
@@ -10,6 +11,7 @@ import AdminPage from './pages/AdminPage'
 function ProtectedLayout() {
   const { currentUser } = useAuth()
   useVersionCheck()
+  useSwipeBack()
   const isAdmin = currentUser?.role === 'admin'
   return (
     <div className="min-h-screen bg-gray-50 w-full overflow-x-hidden">

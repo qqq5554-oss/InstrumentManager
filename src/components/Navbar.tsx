@@ -33,11 +33,16 @@ export default function Navbar() {
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div className="flex flex-col items-center shrink-0">
+          {/* Logo（點擊回儀器總覽） */}
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="flex flex-col items-center shrink-0 cursor-pointer"
+            aria-label="回儀器總覽"
+          >
             <img src={logo} alt="Envirtrol System" className="h-12 w-auto" />
             <span className="text-xs font-bold mt-0.5 hidden xs:block" style={{ color: '#7B1818' }}>大群儀器管理系統</span>
-          </div>
+          </button>
 
           {/* Desktop nav */}
           <div className="hidden sm:flex items-center gap-1">
