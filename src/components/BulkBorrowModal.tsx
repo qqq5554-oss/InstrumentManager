@@ -130,17 +130,18 @@ export default function BulkBorrowModal({ instruments, onClose, onDone }: Props)
     // 有人預約你正借用中的儀器 → 逐台通知目前借用人（帶上該台儀器名與預約人）
     if (loanStatus === 'reserved') {
       const { data: actives } = await supabase.from('loans')
-        .select('employee_id, instruments(name)')
+        .select('employee_id, borrower_name, instruments(name)')
         .in('instrument_id', list.map(i => i.id))
         .eq('status', 'borrowed').is('actual_return_date', null)
       for (const a of actives ?? []) {
         const empId = a.employee_id as string | null
+        const borrowerName = (a.borrower_name as string | null) ?? ''
         const inst = a.instruments as unknown as { name: string } | { name: string }[] | null
         const instName = Array.isArray(inst) ? inst[0]?.name : inst?.name
         if (empId && empId !== currentUser.id) {
           notifyEvent('reserved_for_you', {
             employeeIds: [empId],
-            vars: { instrument: instName ?? '', reserver: currentUser.name },
+            vars: { instrument: instName ?? '', reserver: currentUser.name, borrower: borrowerName },
           })
         }
       }

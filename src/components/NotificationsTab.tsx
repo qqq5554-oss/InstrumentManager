@@ -32,7 +32,7 @@ const EVENT_VARS: Record<string, { token: string; label: string }[]> = {
   reservation_conflict: [{ token: '{instrument}', label: '儀器名' }, { token: '{borrower}', label: '借用人' }, { token: '{reserver}', label: '預約人' }],
   overdue: [{ token: '{instrument}', label: '儀器名' }, { token: '{borrower}', label: '借用人' }],
   malfunction: [{ token: '{instrument}', label: '儀器名' }, { token: '{borrower}', label: '回報人' }, { token: '{description}', label: '問題描述' }],
-  reserved_for_you: [{ token: '{instrument}', label: '儀器名' }, { token: '{reserver}', label: '預約人' }],
+  reserved_for_you: [{ token: '{instrument}', label: '儀器名' }, { token: '{borrower}', label: '借用人' }, { token: '{reserver}', label: '預約人' }],
 }
 
 // 預覽 / 試發用的範例資料

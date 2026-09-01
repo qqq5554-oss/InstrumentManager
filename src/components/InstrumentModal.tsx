@@ -118,10 +118,10 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     // 有人預約你正借用中的儀器 → 通知目前借用人
     if (loanStatus === 'reserved') {
       const { data: active } = await supabase.from('loans')
-        .select('employee_id').eq('instrument_id', instrument.id)
+        .select('employee_id, borrower_name').eq('instrument_id', instrument.id)
         .eq('status', 'borrowed').is('actual_return_date', null).limit(1).maybeSingle()
       if (active?.employee_id && active.employee_id !== currentUser.id) {
-        notifyEvent('reserved_for_you', { employeeIds: [active.employee_id], vars: { instrument: instrument.name, reserver: currentUser.name } })
+        notifyEvent('reserved_for_you', { employeeIds: [active.employee_id], vars: { instrument: instrument.name, reserver: currentUser.name, borrower: active.borrower_name ?? '' } })
       }
     }
 
