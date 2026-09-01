@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import { useVersionCheck } from './hooks/useVersionCheck'
 import { useSwipeBack } from './hooks/useSwipeBack'
+import { usePushNavigation } from './hooks/usePushNavigation'
 import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import RecordsPage from './pages/RecordsPage'
@@ -12,6 +13,7 @@ function ProtectedLayout() {
   const { currentUser } = useAuth()
   useVersionCheck()
   useSwipeBack()
+  usePushNavigation()
   const isAdmin = currentUser?.role === 'admin'
   return (
     <div className="min-h-screen bg-gray-50 w-full overflow-x-hidden">

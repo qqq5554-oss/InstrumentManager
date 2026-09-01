@@ -33,12 +33,17 @@ self.addEventListener('notificationclick', event => {
   event.notification.close()
   const targetUrl = (event.notification.data && event.notification.data.url) || '/InstrumentManager/'
 
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
-      for (const client of clientList) {
-        if ('focus' in client) return client.focus()
+  event.waitUntil((async () => {
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    // App 已開著 → 聚焦並通知它切換頁面
+    for (const client of clientList) {
+      if ('focus' in client) {
+        await client.focus()
+        client.postMessage({ type: 'navigate', url: targetUrl })
+        return
       }
-      if (self.clients.openWindow) return self.clients.openWindow(targetUrl)
-    })
-  )
+    }
+    // App 沒開 → 直接開到指定頁
+    if (self.clients.openWindow) return self.clients.openWindow(targetUrl)
+  })())
 })

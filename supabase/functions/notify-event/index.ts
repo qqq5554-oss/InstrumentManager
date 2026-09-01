@@ -51,8 +51,22 @@ Deno.serve(async (req) => {
         .replace(/\{reserver\}/g, vars?.reserver ?? '')
         .replace(/\{description\}/g, vars?.description ?? '')
 
-    const msg = (title: string, bd: string) =>
-      JSON.stringify({ title: title || '大群儀器管理', body: bd, url: '/InstrumentManager/' })
+    // 點通知後要開啟的頁面（HashRouter 路徑）
+    const routeFor = (eventKey: string) => {
+      switch (eventKey) {
+        case 'overdue':
+        case 'reservation_conflict':
+        case 'reserved_for_you':
+          return '/InstrumentManager/#/records'   // 借用紀錄（可歸還）
+        case 'malfunction':
+          return '/InstrumentManager/#/'           // 首頁（維修中置頂）
+        default:
+          return '/InstrumentManager/'
+      }
+    }
+
+    const msg = (title: string, bd: string, url = '/InstrumentManager/') =>
+      JSON.stringify({ title: title || '大群儀器管理', body: bd, url })
 
     async function adminIds(): Promise<string[]> {
       const { data } = await supabase.from('employees').select('id').eq('role', 'admin')
@@ -105,7 +119,7 @@ Deno.serve(async (req) => {
       const s = settings[eventKey]
       if (!s || !s.enabled) return { event: eventKey, skipped: 'push off' }
       const subs = await resolveSubs(s.audience, targetIds)
-      const r = await pushTo(subs, msg(interp(s.title, vars), interp(s.body, vars)))
+      const r = await pushTo(subs, msg(interp(s.title, vars), interp(s.body, vars), routeFor(eventKey)))
       return { event: eventKey, ...r }
     }
 
@@ -145,7 +159,7 @@ Deno.serve(async (req) => {
               }
             } else {
               const subs = await resolveSubs(ov.audience, undefined)
-              results.push({ event: 'overdue', ...(await pushTo(subs, msg(interp(ov.title, allV), interp(ov.body, allV)))) })
+              results.push({ event: 'overdue', ...(await pushTo(subs, msg(interp(ov.title, allV), interp(ov.body, allV), routeFor('overdue')))) })
             }
           }
           if (ov.line_enabled) {
@@ -189,7 +203,7 @@ Deno.serve(async (req) => {
               }
             } else {
               const subs = await resolveSubs(rc.audience, undefined)
-              results.push({ event: 'reservation_conflict', ...(await pushTo(subs, msg(interp(rc.title, allV), interp(rc.body, allV)))) })
+              results.push({ event: 'reservation_conflict', ...(await pushTo(subs, msg(interp(rc.title, allV), interp(rc.body, allV), routeFor('reservation_conflict')))) })
             }
           }
           if (rc.line_enabled) {
@@ -210,7 +224,7 @@ Deno.serve(async (req) => {
         const title = interp(body.title ?? s?.title ?? '', body.vars)
         const bd = interp(body.body ?? s?.body ?? '', body.vars)
         const subs = await resolveSubs('borrower', body.onlyEmployeeIds)
-        const r = await pushTo(subs, msg(title, bd))
+        const r = await pushTo(subs, msg(title, bd, routeFor(body.event_key)))
         return json({ test: true, ...r })
       }
 
