@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import type { Loan } from '../types'
 import { ReturnTermsModal } from '../components/TermsModal'
-import { notifyLineMalfunction } from '../lib/lineNotify'
 import { notifyEvent } from '../lib/pushEvents'
 
 interface LoanWithInstrument extends Omit<Loan, 'instruments'> {
@@ -107,13 +106,7 @@ export default function RecordsPage() {
     setReturning(loan.id)
     await supabase.from('loans').update({ actual_return_date: today(), status: 'returned' }).eq('id', loan.id)
     await supabase.from('instruments').update({ status: 'maintenance' }).eq('id', loan.instrument_id)
-    notifyLineMalfunction({
-      borrowerName: currentUser.name,
-      instrumentName: loan.instruments?.name ?? '',
-      instrumentNo: loan.instruments?.instrument_no ?? '',
-      description,
-    })
-    notifyEvent('malfunction', { vars: { instrument: loan.instruments?.name ?? '', borrower: currentUser.name } })
+    notifyEvent('malfunction', { vars: { instrument: loan.instruments?.name ?? '', borrower: currentUser.name, description } })
     await fetchLoans()
     setReturning(null)
     setSelectedLoan(null)

@@ -1,11 +1,13 @@
 // Supabase Edge Function: notify-event
-// 依「通知管理」設定的規則發送 Web Push。
+// 依「通知管理」設定的規則，分別發送 App 推播（enabled）與 LINE 群組通知（line_enabled）。
 //
-// 兩種呼叫模式：
-//   前端事件： { "event_key": "malfunction", "employeeIds": ["uuid"], "vars": { "instrument": "..." , "borrower": "..." } }
-//   每日排程： { "scan": true }  → 掃描 reservation_conflict 與 overdue
+// 呼叫模式：
+//   前端事件： { "event_key": "malfunction", "employeeIds": ["uuid"], "vars": {...} }
+//   試發（只給自己）： { "event_key": "...", "onlyEmployeeIds": ["uuid"], "title": "...", "body": "...", "vars": {...} }
+//   每日排程： { "scan": true }
 //
-// 需要 Secrets：VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT(選填)
+// Secrets：VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT(選填)
+//          LINE_CHANNEL_ACCESS_TOKEN / LINE_GROUP_ID（LINE 通知用）
 
 import webpush from 'npm:web-push@3.6.7'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -28,79 +30,97 @@ Deno.serve(async (req) => {
       Deno.env.get('VAPID_PRIVATE_KEY')!,
     )
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-
     const body = await req.json().catch(() => ({})) as {
       event_key?: string
       employeeIds?: string[]
-      vars?: { instrument?: string; borrower?: string; reserver?: string }
+      onlyEmployeeIds?: string[]
+      title?: string
+      body?: string
+      vars?: Record<string, string>
       scan?: boolean
     }
 
     const { data: settingRows } = await supabase.from('notification_settings').select('*')
-    const settings: Record<string, { enabled: boolean; audience: string; title: string; body: string }> = {}
+    const settings: Record<string, { enabled: boolean; line_enabled: boolean; audience: string; title: string; body: string }> = {}
     for (const r of settingRows ?? []) settings[r.event_key] = r
 
-    const interp = (t: string, vars?: { instrument?: string; borrower?: string; reserver?: string }) =>
+    const interp = (t: string, vars?: Record<string, string>) =>
       (t || '')
         .replace(/\{instrument\}/g, vars?.instrument ?? '')
         .replace(/\{borrower\}/g, vars?.borrower ?? '')
         .replace(/\{reserver\}/g, vars?.reserver ?? '')
+        .replace(/\{description\}/g, vars?.description ?? '')
+
+    const msg = (title: string, bd: string) =>
+      JSON.stringify({ title: title || '大群儀器管理', body: bd, url: '/InstrumentManager/' })
 
     async function adminIds(): Promise<string[]> {
       const { data } = await supabase.from('employees').select('id').eq('role', 'admin')
       return (data ?? []).map((e: { id: string }) => e.id)
     }
 
-    async function fire(eventKey: string, targetEmployeeIds?: string[], vars?: { instrument?: string; borrower?: string }) {
-      const s = settings[eventKey]
-      if (!s || !s.enabled) return { event: eventKey, skipped: 'disabled' }
-
+    async function resolveSubs(audience: string, targetIds?: string[]) {
       let q = supabase.from('push_subscriptions').select('*')
-      if (s.audience === 'admins') {
+      if (audience === 'admins') {
         const ids = await adminIds()
-        if (ids.length === 0) return { event: eventKey, sent: 0 }
+        if (ids.length === 0) return []
         q = q.in('employee_id', ids)
-      } else if (s.audience === 'borrower') {
-        const ids = (targetEmployeeIds ?? []).filter(Boolean)
-        if (ids.length === 0) return { event: eventKey, sent: 0, note: 'no target' }
+      } else if (audience === 'borrower') {
+        const ids = (targetIds ?? []).filter(Boolean)
+        if (ids.length === 0) return []
         q = q.in('employee_id', ids)
-      } // 'all' → 不過濾
+      }
+      const { data } = await q
+      return data ?? []
+    }
 
-      const { data: subs } = await q
-      const message = JSON.stringify({
-        title: interp(s.title, vars) || '大群儀器管理',
-        body: interp(s.body, vars),
-        url: '/InstrumentManager/',
-      })
-
+    async function pushTo(subs: { endpoint: string; p256dh: string; auth: string }[], message: string) {
       let sent = 0, removed = 0
-      for (const sub of subs ?? []) {
+      for (const sub of subs) {
         try {
           await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, message)
           sent++
         } catch (e) {
           const st = (e as { statusCode?: number })?.statusCode
-          if (st === 410 || st === 404) {
-            await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
-            removed++
-          }
+          if (st === 410 || st === 404) { await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint); removed++ }
         }
       }
-      return { event: eventKey, sent, removed, total: subs?.length ?? 0 }
+      return { sent, removed, total: subs.length }
+    }
+
+    async function sendLine(text: string) {
+      const token = Deno.env.get('LINE_CHANNEL_ACCESS_TOKEN')
+      const group = Deno.env.get('LINE_GROUP_ID')
+      if (!token || !group) return 'no config'
+      const res = await fetch('https://api.line.me/v2/bot/message/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ to: group, messages: [{ type: 'text', text }] }),
+      })
+      return res.ok ? 'sent' : `err ${res.status}`
+    }
+
+    // App 推播（依 enabled + audience）
+    async function firePush(eventKey: string, targetIds: string[] | undefined, vars?: Record<string, string>) {
+      const s = settings[eventKey]
+      if (!s || !s.enabled) return { event: eventKey, skipped: 'push off' }
+      const subs = await resolveSubs(s.audience, targetIds)
+      const r = await pushTo(subs, msg(interp(s.title, vars), interp(s.body, vars)))
+      return { event: eventKey, ...r }
     }
 
     // ── 每日排程掃描 ──
     if (body.scan) {
-      const results = []
+      const results: unknown[] = []
       const today = new Date().toISOString().split('T')[0]
       const nameOf = (row: { instruments?: { name: string } | { name: string }[] | null }) => {
         const i = row?.instruments
         return Array.isArray(i) ? (i[0]?.name ?? '') : (i?.name ?? '')
       }
 
-      // 逾期未還：已借出、未還、超過預計歸還日
+      // 逾期未還
       const ov = settings['overdue']
-      if (ov?.enabled) {
+      if (ov && (ov.enabled || ov.line_enabled)) {
         const { data: overdue } = await supabase.from('loans')
           .select('employee_id, instruments(name)')
           .eq('status', 'borrowed').is('actual_return_date', null).lt('expected_return_date', today)
@@ -112,21 +132,29 @@ Deno.serve(async (req) => {
             if (nm) allNames.push(nm)
             if (l.employee_id) (byEmp[l.employee_id] ??= []).push(nm)
           }
-          if (ov.audience === 'borrower') {
-            for (const empId of Object.keys(byEmp)) {
-              results.push(await fire('overdue', [empId], { instrument: byEmp[empId].filter(Boolean).join('、') }))
+          if (ov.enabled) {
+            if (ov.audience === 'borrower') {
+              for (const empId of Object.keys(byEmp)) {
+                results.push(await firePush('overdue', [empId], { instrument: byEmp[empId].filter(Boolean).join('、') }))
+              }
+            } else {
+              const s = settings['overdue']
+              const subs = await resolveSubs(s.audience, undefined)
+              const v = { instrument: [...new Set(allNames)].join('、') }
+              results.push({ event: 'overdue', ...(await pushTo(subs, msg(interp(s.title, v), interp(s.body, v)))) })
             }
-          } else {
-            results.push(await fire('overdue', null, { instrument: [...new Set(allNames)].join('、') }))
+          }
+          if (ov.line_enabled) {
+            const v = { instrument: [...new Set(allNames)].join('、') }
+            results.push({ event: 'overdue', line: await sendLine(`${interp(ov.title, v)}\n${interp(ov.body, v)}`) })
           }
         }
       }
 
-      // 預約衝突：明天有人預約、但該儀器目前仍有人借用未還 → 通知目前借用人
+      // 預約衝突
       const rc = settings['reservation_conflict']
-      if (rc?.enabled) {
-        const tomorrow = new Date()
-        tomorrow.setDate(tomorrow.getDate() + 1)
+      if (rc && (rc.enabled || rc.line_enabled)) {
+        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
         const tomorrowStr = tomorrow.toISOString().split('T')[0]
         const { data: resv } = await supabase.from('loans')
           .select('instrument_id').eq('status', 'reserved').eq('borrow_date', tomorrowStr)
@@ -142,13 +170,21 @@ Deno.serve(async (req) => {
             ;(byEmp[active.employee_id] ??= []).push(nm)
           }
         }
-        if (Object.keys(byEmp).length > 0) {
-          if (rc.audience === 'borrower') {
-            for (const empId of Object.keys(byEmp)) {
-              results.push(await fire('reservation_conflict', [empId], { instrument: byEmp[empId].filter(Boolean).join('、') }))
+        if (allNames.length > 0 || Object.keys(byEmp).length > 0) {
+          if (rc.enabled) {
+            if (rc.audience === 'borrower') {
+              for (const empId of Object.keys(byEmp)) {
+                results.push(await firePush('reservation_conflict', [empId], { instrument: byEmp[empId].filter(Boolean).join('、') }))
+              }
+            } else {
+              const subs = await resolveSubs(rc.audience, undefined)
+              const v = { instrument: [...new Set(allNames)].join('、') }
+              results.push({ event: 'reservation_conflict', ...(await pushTo(subs, msg(interp(rc.title, v), interp(rc.body, v)))) })
             }
-          } else {
-            results.push(await fire('reservation_conflict', null, { instrument: [...new Set(allNames)].join('、') }))
+          }
+          if (rc.line_enabled) {
+            const v = { instrument: [...new Set(allNames)].join('、') }
+            results.push({ event: 'reservation_conflict', line: await sendLine(`${interp(rc.title, v)}\n${interp(rc.body, v)}`) })
           }
         }
       }
@@ -156,9 +192,23 @@ Deno.serve(async (req) => {
       return json({ scan: true, results })
     }
 
-    // ── 前端單一事件 ──
+    // ── 前端事件 / 試發 ──
     if (body.event_key) {
-      return json(await fire(body.event_key, body.employeeIds, body.vars))
+      const s = settings[body.event_key]
+
+      // 試發：只發 App 推播到指定的人（自己），不發 LINE
+      if (Array.isArray(body.onlyEmployeeIds)) {
+        const title = interp(body.title ?? s?.title ?? '', body.vars)
+        const bd = interp(body.body ?? s?.body ?? '', body.vars)
+        const subs = await resolveSubs('borrower', body.onlyEmployeeIds)
+        const r = await pushTo(subs, msg(title, bd))
+        return json({ test: true, ...r })
+      }
+
+      const push = await firePush(body.event_key, body.employeeIds, body.vars)
+      let line: string | null = null
+      if (s?.line_enabled) line = await sendLine(`${interp(s.title, body.vars)}\n${interp(s.body, body.vars)}`)
+      return json({ push, line })
     }
 
     return json({ error: 'no event_key or scan' }, 400)

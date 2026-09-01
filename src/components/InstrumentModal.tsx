@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext'
 import type { Instrument, Loan } from '../types'
 import StatusBadge from './StatusBadge'
 import { BorrowTermsModal, ReturnTermsModal } from './TermsModal'
-import { notifyLineMalfunction } from '../lib/lineNotify'
 import { notifyEvent } from '../lib/pushEvents'
 
 interface Props {
@@ -167,13 +166,7 @@ export default function InstrumentModal({ instrument, onClose, onRefresh }: Prop
     setReturning(loan.id)
     await supabase.from('loans').update({ actual_return_date: today(), status: 'returned' }).eq('id', loan.id)
     await supabase.from('instruments').update({ status: 'maintenance' }).eq('id', instrument.id)
-    notifyLineMalfunction({
-      borrowerName: currentUser.name,
-      instrumentName: instrument.name,
-      instrumentNo: instrument.instrument_no,
-      description,
-    })
-    notifyEvent('malfunction', { vars: { instrument: instrument.name, borrower: currentUser.name } })
+    notifyEvent('malfunction', { vars: { instrument: instrument.name, borrower: currentUser.name, description } })
     await fetchLoans()
     await onRefresh()
     setReturning(null)
