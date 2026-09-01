@@ -29,8 +29,8 @@ const AUDIENCE_OPTIONS: { value: Audience; label: string }[] = [
 
 // 每個事件實際能帶入的變數（只列可用的，避免用到空白變數）
 const EVENT_VARS: Record<string, { token: string; label: string }[]> = {
-  reservation_conflict: [{ token: '{instrument}', label: '儀器名' }],
-  overdue: [{ token: '{instrument}', label: '儀器名' }],
+  reservation_conflict: [{ token: '{instrument}', label: '儀器名' }, { token: '{borrower}', label: '借用人' }, { token: '{reserver}', label: '預約人' }],
+  overdue: [{ token: '{instrument}', label: '儀器名' }, { token: '{borrower}', label: '借用人' }],
   malfunction: [{ token: '{instrument}', label: '儀器名' }, { token: '{borrower}', label: '回報人' }, { token: '{description}', label: '問題描述' }],
   reserved_for_you: [{ token: '{instrument}', label: '儀器名' }, { token: '{reserver}', label: '預約人' }],
 }

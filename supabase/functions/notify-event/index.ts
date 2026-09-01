@@ -122,31 +122,34 @@ Deno.serve(async (req) => {
       const ov = settings['overdue']
       if (ov && (ov.enabled || ov.line_enabled)) {
         const { data: overdue } = await supabase.from('loans')
-          .select('employee_id, instruments(name)')
+          .select('employee_id, borrower_name, instruments(name)')
           .eq('status', 'borrowed').is('actual_return_date', null).lt('expected_return_date', today)
         if (overdue && overdue.length > 0) {
-          const byEmp: Record<string, string[]> = {}
+          const byEmp: Record<string, { name: string; instruments: string[] }> = {}
           const allNames: string[] = []
+          const allBorrowers = new Set<string>()
           for (const l of overdue) {
             const nm = nameOf(l)
             if (nm) allNames.push(nm)
-            if (l.employee_id) (byEmp[l.employee_id] ??= []).push(nm)
+            if (l.borrower_name) allBorrowers.add(l.borrower_name)
+            if (l.employee_id) {
+              (byEmp[l.employee_id] ??= { name: l.borrower_name ?? '', instruments: [] }).instruments.push(nm)
+            }
           }
+          const allV = { instrument: [...new Set(allNames)].join('、'), borrower: [...allBorrowers].join('、') }
           if (ov.enabled) {
             if (ov.audience === 'borrower') {
               for (const empId of Object.keys(byEmp)) {
-                results.push(await firePush('overdue', [empId], { instrument: byEmp[empId].filter(Boolean).join('、') }))
+                const g = byEmp[empId]
+                results.push(await firePush('overdue', [empId], { instrument: g.instruments.filter(Boolean).join('、'), borrower: g.name }))
               }
             } else {
-              const s = settings['overdue']
-              const subs = await resolveSubs(s.audience, undefined)
-              const v = { instrument: [...new Set(allNames)].join('、') }
-              results.push({ event: 'overdue', ...(await pushTo(subs, msg(interp(s.title, v), interp(s.body, v)))) })
+              const subs = await resolveSubs(ov.audience, undefined)
+              results.push({ event: 'overdue', ...(await pushTo(subs, msg(interp(ov.title, allV), interp(ov.body, allV)))) })
             }
           }
           if (ov.line_enabled) {
-            const v = { instrument: [...new Set(allNames)].join('、') }
-            results.push({ event: 'overdue', line: await sendLine(`${interp(ov.title, v)}\n${interp(ov.body, v)}`) })
+            results.push({ event: 'overdue', line: await sendLine(`${interp(ov.title, allV)}\n${interp(ov.body, allV)}`) })
           }
         }
       }
@@ -157,34 +160,40 @@ Deno.serve(async (req) => {
         const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
         const tomorrowStr = tomorrow.toISOString().split('T')[0]
         const { data: resv } = await supabase.from('loans')
-          .select('instrument_id').eq('status', 'reserved').eq('borrow_date', tomorrowStr)
-        const byEmp: Record<string, string[]> = {}
+          .select('instrument_id, borrower_name').eq('status', 'reserved').eq('borrow_date', tomorrowStr)
+        const byEmp: Record<string, { name: string; instruments: string[]; reservers: string[] }> = {}
         const allNames: string[] = []
+        const allBorrowers = new Set<string>()
+        const allReservers = new Set<string>()
         for (const r of resv ?? []) {
           const { data: active } = await supabase.from('loans')
-            .select('employee_id, instruments(name)').eq('instrument_id', r.instrument_id)
+            .select('employee_id, borrower_name, instruments(name)').eq('instrument_id', r.instrument_id)
             .eq('status', 'borrowed').is('actual_return_date', null).limit(1).maybeSingle()
           if (active?.employee_id) {
             const nm = nameOf(active)
             if (nm) allNames.push(nm)
-            ;(byEmp[active.employee_id] ??= []).push(nm)
+            if (active.borrower_name) allBorrowers.add(active.borrower_name)
+            if (r.borrower_name) allReservers.add(r.borrower_name)
+            const g = (byEmp[active.employee_id] ??= { name: active.borrower_name ?? '', instruments: [], reservers: [] })
+            g.instruments.push(nm)
+            if (r.borrower_name) g.reservers.push(r.borrower_name)
           }
         }
-        if (allNames.length > 0 || Object.keys(byEmp).length > 0) {
+        if (Object.keys(byEmp).length > 0) {
+          const allV = { instrument: [...new Set(allNames)].join('、'), borrower: [...allBorrowers].join('、'), reserver: [...allReservers].join('、') }
           if (rc.enabled) {
             if (rc.audience === 'borrower') {
               for (const empId of Object.keys(byEmp)) {
-                results.push(await firePush('reservation_conflict', [empId], { instrument: byEmp[empId].filter(Boolean).join('、') }))
+                const g = byEmp[empId]
+                results.push(await firePush('reservation_conflict', [empId], { instrument: g.instruments.filter(Boolean).join('、'), borrower: g.name, reserver: [...new Set(g.reservers)].join('、') }))
               }
             } else {
               const subs = await resolveSubs(rc.audience, undefined)
-              const v = { instrument: [...new Set(allNames)].join('、') }
-              results.push({ event: 'reservation_conflict', ...(await pushTo(subs, msg(interp(rc.title, v), interp(rc.body, v)))) })
+              results.push({ event: 'reservation_conflict', ...(await pushTo(subs, msg(interp(rc.title, allV), interp(rc.body, allV)))) })
             }
           }
           if (rc.line_enabled) {
-            const v = { instrument: [...new Set(allNames)].join('、') }
-            results.push({ event: 'reservation_conflict', line: await sendLine(`${interp(rc.title, v)}\n${interp(rc.body, v)}`) })
+            results.push({ event: 'reservation_conflict', line: await sendLine(`${interp(rc.title, allV)}\n${interp(rc.body, allV)}`) })
           }
         }
       }
