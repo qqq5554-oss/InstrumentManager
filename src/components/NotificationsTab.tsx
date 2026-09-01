@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Employee } from '../types'
 
@@ -25,6 +25,14 @@ const AUDIENCE_OPTIONS: { value: Audience; label: string }[] = [
   { value: 'admins', label: '所有管理員' },
   { value: 'all', label: '所有已訂閱者' },
 ]
+
+// 每個事件實際能帶入的變數（只列可用的，避免用到空白變數）
+const EVENT_VARS: Record<string, { token: string; label: string }[]> = {
+  reservation_conflict: [{ token: '{instrument}', label: '儀器名' }],
+  overdue: [{ token: '{instrument}', label: '儀器名' }],
+  malfunction: [{ token: '{instrument}', label: '儀器名' }, { token: '{borrower}', label: '回報人' }],
+  reserved_for_you: [{ token: '{instrument}', label: '儀器名' }, { token: '{reserver}', label: '預約人' }],
+}
 
 const DEFAULTS: Record<string, Omit<Setting, 'event_key'>> = {
   reservation_conflict: { enabled: true, audience: 'borrower', title: '儀器歸還提醒', body: '明日有人預約你借用中的儀器，請於今日下班前歸還' },
@@ -70,6 +78,22 @@ export default function NotificationsTab() {
 
   const update = (key: string, patch: Partial<Setting>) => {
     setSettings(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }))
+  }
+
+  const bodyRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
+  const insertVar = (key: string, token: string) => {
+    const ta = bodyRefs.current[key]
+    const cur = settings[key].body
+    if (!ta) { update(key, { body: cur + token }); return }
+    const start = ta.selectionStart ?? cur.length
+    const end = ta.selectionEnd ?? cur.length
+    const next = cur.slice(0, start) + token + cur.slice(end)
+    update(key, { body: next })
+    requestAnimationFrame(() => {
+      ta.focus()
+      const pos = start + token.length
+      ta.setSelectionRange(pos, pos)
+    })
   }
 
   const save = async (key: string) => {
@@ -139,16 +163,26 @@ export default function NotificationsTab() {
                 <div className="mt-3">
                   <label className="block text-xs text-gray-500 mb-1">內容</label>
                   <textarea
+                    ref={el => { bodyRefs.current[ev.key] = el }}
                     value={s.body}
                     onChange={e => update(ev.key, { body: e.target.value })}
                     rows={2}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 resize-none"
                   />
-                  <p className="text-xs text-gray-400 mt-1">
-                    可用變數：<code className="bg-gray-100 px-1 rounded">{'{instrument}'}</code> 儀器名、
-                    <code className="bg-gray-100 px-1 rounded">{'{reserver}'}</code> 預約人、
-                    <code className="bg-gray-100 px-1 rounded">{'{borrower}'}</code> 借用人
-                  </p>
+                  <div className="flex items-center flex-wrap gap-1.5 mt-2">
+                    <span className="text-xs text-gray-400">點擊插入變數：</span>
+                    {(EVENT_VARS[ev.key] ?? []).map(v => (
+                      <button
+                        key={v.token}
+                        type="button"
+                        onClick={() => insertVar(ev.key, v.token)}
+                        className="text-xs px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                        title={`插入 ${v.token}`}
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex justify-end mt-3">
                   <button
