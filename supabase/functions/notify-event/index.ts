@@ -93,27 +93,65 @@ Deno.serve(async (req) => {
     if (body.scan) {
       const results = []
       const today = new Date().toISOString().split('T')[0]
+      const nameOf = (row: { instruments?: { name: string } | { name: string }[] | null }) => {
+        const i = row?.instruments
+        return Array.isArray(i) ? (i[0]?.name ?? '') : (i?.name ?? '')
+      }
+
+      // 逾期未還：已借出、未還、超過預計歸還日
+      const ov = settings['overdue']
+      if (ov?.enabled) {
+        const { data: overdue } = await supabase.from('loans')
+          .select('employee_id, instruments(name)')
+          .eq('status', 'borrowed').is('actual_return_date', null).lt('expected_return_date', today)
+        if (overdue && overdue.length > 0) {
+          const byEmp: Record<string, string[]> = {}
+          const allNames: string[] = []
+          for (const l of overdue) {
+            const nm = nameOf(l)
+            if (nm) allNames.push(nm)
+            if (l.employee_id) (byEmp[l.employee_id] ??= []).push(nm)
+          }
+          if (ov.audience === 'borrower') {
+            for (const empId of Object.keys(byEmp)) {
+              results.push(await fire('overdue', [empId], { instrument: byEmp[empId].filter(Boolean).join('、') }))
+            }
+          } else {
+            results.push(await fire('overdue', null, { instrument: [...new Set(allNames)].join('、') }))
+          }
+        }
+      }
 
       // 預約衝突：明天有人預約、但該儀器目前仍有人借用未還 → 通知目前借用人
-      const tomorrow = new Date()
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      const tomorrowStr = tomorrow.toISOString().split('T')[0]
-      const { data: resv } = await supabase.from('loans')
-        .select('instrument_id').eq('status', 'reserved').eq('borrow_date', tomorrowStr)
-      const conflictIds = new Set<string>()
-      for (const r of resv ?? []) {
-        const { data: active } = await supabase.from('loans')
-          .select('employee_id').eq('instrument_id', r.instrument_id)
-          .eq('status', 'borrowed').is('actual_return_date', null).limit(1).maybeSingle()
-        if (active?.employee_id) conflictIds.add(active.employee_id)
+      const rc = settings['reservation_conflict']
+      if (rc?.enabled) {
+        const tomorrow = new Date()
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        const tomorrowStr = tomorrow.toISOString().split('T')[0]
+        const { data: resv } = await supabase.from('loans')
+          .select('instrument_id').eq('status', 'reserved').eq('borrow_date', tomorrowStr)
+        const byEmp: Record<string, string[]> = {}
+        const allNames: string[] = []
+        for (const r of resv ?? []) {
+          const { data: active } = await supabase.from('loans')
+            .select('employee_id, instruments(name)').eq('instrument_id', r.instrument_id)
+            .eq('status', 'borrowed').is('actual_return_date', null).limit(1).maybeSingle()
+          if (active?.employee_id) {
+            const nm = nameOf(active)
+            if (nm) allNames.push(nm)
+            ;(byEmp[active.employee_id] ??= []).push(nm)
+          }
+        }
+        if (Object.keys(byEmp).length > 0) {
+          if (rc.audience === 'borrower') {
+            for (const empId of Object.keys(byEmp)) {
+              results.push(await fire('reservation_conflict', [empId], { instrument: byEmp[empId].filter(Boolean).join('、') }))
+            }
+          } else {
+            results.push(await fire('reservation_conflict', null, { instrument: [...new Set(allNames)].join('、') }))
+          }
+        }
       }
-      if (conflictIds.size > 0) results.push(await fire('reservation_conflict', [...conflictIds]))
-
-      // 逾期未還：已借出、未還、超過預計歸還日 → 通知借用人
-      const { data: overdue } = await supabase.from('loans')
-        .select('employee_id').eq('status', 'borrowed').is('actual_return_date', null).lt('expected_return_date', today)
-      const overdueIds = [...new Set((overdue ?? []).map((l: { employee_id: string | null }) => l.employee_id).filter(Boolean))] as string[]
-      if (overdueIds.length > 0) results.push(await fire('overdue', overdueIds))
 
       return json({ scan: true, results })
     }
